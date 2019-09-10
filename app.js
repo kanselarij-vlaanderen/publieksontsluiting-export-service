@@ -1,26 +1,18 @@
 import { app, query, errorHandler } from 'mu';
+import { writeToFile } from './lib/graph-helpers';
 
 app.get('/', function( req, res ) {
-  res.send('Hello mu-javascript-template');
+  res.send('Hello from publieksontsluiting-export-service');
 } );
 
+app.post('/export', async function( req, res ) {
+  const timestamp = new Date().toISOString().replace(/\D/g,'').substring(0, 14);
+  const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
+  await writeToFile('http://mu.semte.ch/application', file);
 
-app.get('/query', function( req, res ) {
-  var myQuery = `
-    SELECT *
-    WHERE {
-      GRAPH <http://mu.semte.ch/application> {
-        ?s ?p ?o.
-      }
-    }`;
-
-  query( myQuery )
-    .then( function(response) {
-      res.send( JSON.stringify( response ) );
-    })
-    .catch( function(err) {
-      res.send( "Oops something went wrong: " + JSON.stringify( err ) );
-    });
-} );
+  res.status(200).send({
+    export: file
+  });
+});
 
 app.use(errorHandler);
