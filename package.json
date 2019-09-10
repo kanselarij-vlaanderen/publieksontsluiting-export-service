@@ -1,0 +1,11 @@
+{
+  "name": "publieksontsluiting-export-service",
+  "version": "0.0.0",
+  "description": "Microservice that exports news for the Publieksontsluiting application",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kanselarij-vlaanderen/publieksontsluiting-export-service.git"
+  },
+  "author": "redpencil.io",
+  "license": "MIT",
+}
