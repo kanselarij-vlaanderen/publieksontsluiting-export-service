@@ -10,8 +10,6 @@ Add the following snippet to your `docker-compose.yml`:
     image: kanselarij-vlaanderen/publieksontsluiting-export-service
     links:
       - database:database
-    extra_hosts:
-      - "kaleidos:172.17.0.1"
     volumes:
       - ./data/exports/publieksontsluiting:/data/exports
 ```
