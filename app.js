@@ -1,5 +1,6 @@
 import { app, query, errorHandler } from 'mu';
 import { writeToFile } from './lib/graph-helpers';
+import { queryKaleidos } from './lib/kaleidos';
 
 app.get('/', function( req, res ) {
   res.send('Hello from publieksontsluiting-export-service');
@@ -14,5 +15,11 @@ app.post('/export', async function( req, res ) {
     export: file
   });
 });
+
+// TODO remove this dummy function
+app.get('/ping-kaleidos', async function( req, res ) {
+  const result = await queryKaleidos(`SELECT * WHERE { GRAPH <http://mu.semte.ch/graphs/public> { ?s ?p ?o } } LIMIT 10`);
+  res.status(200).send(result);
+} );
 
 app.use(errorHandler);
