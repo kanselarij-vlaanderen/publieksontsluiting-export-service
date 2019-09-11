@@ -112,8 +112,8 @@ function constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo) {
           ^prov:generated ${sparqlEscapeUri(procedurestapInfo.s)} ;
           mu:uuid ?uuid ;
           dct:title ?title ;
-          ext:htmlInhoud ?htmlInhoud ;
-          ext:themesOfSubcase ?themesOfSubcase .
+          ext:htmlInhoud ?htmlInhoud .
+        OPTIONAL { ?s ext:themesOfSubcase ?themesOfSubcase .}
         ${sparqlEscapeUri(procedurestapInfo.s)} besluitvorming:heeftBevoegde ?heeftBevoegde ;
           besluitvorming:isGeagendeerdVia ?agendapunt .
         ?agendapunt ext:prioriteit ?priorty .
