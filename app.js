@@ -7,7 +7,7 @@ app.get('/', function( req, res ) {
   res.send('Hello from publieksontsluiting-export-service');
 } );
 
-app.post('/export', async function( req, res ) {
+app.post('/export/:uuid', async function( req, res ) {
   const timestamp = new Date().toISOString().replace(/\D/g,'').substring(0, 14);
   const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
   await writeToFile('http://mu.semte.ch/application', file);
