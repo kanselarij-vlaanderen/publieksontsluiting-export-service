@@ -26,26 +26,35 @@ app.post('/export/:uuid', async function( req, res ) {
   try {
     const meetingUri = parseResult(result)[0].s;
 
-    const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid)
-    await copyToLocalGraph(meetingInfo, exportGraph);
+    try {
+      const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid)
+      await copyToLocalGraph(meetingInfo, exportGraph);
 
-    const procedurestapInfo = constructProcedurestapInfo(kaleidosGraph, meetingUri)
-    await copyToLocalGraph(procedurestapInfo, tmpGraph);
+      const procedurestapInfo = constructProcedurestapInfo(kaleidosGraph, meetingUri)
+      await copyToLocalGraph(procedurestapInfo, tmpGraph);
 
-    const resultProcedurestappenInfo = await getProcedurestappenInfoFromTmp(tmpGraph);
-    const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
+      const resultProcedurestappenInfo = await getProcedurestappenInfoFromTmp(tmpGraph);
+      const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
 
-    procedurestappenInfo.forEach(procedurestapInfo => {
-      const nieuwsbriefInfo = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo)
-      copyToLocalGraph(nieuwsbriefInfo, exportGraph);
-    });
+      await Promise.all(procedurestappenInfo.map(async (procedurestapInfo) => {
+        try {
+          const nieuwsbriefInfo = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo)
+          await copyToLocalGraph(nieuwsbriefInfo, exportGraph);
+        } catch (e) {
+          console.log(e);
+        }
+      }));
 
-    const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
-    await writeToFile(graph, file);
+      const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
+      await writeToFile(exportGraph, file);
 
-    res.status(200).send({
-      // export: file
-    });
+      res.status(200).send({
+        export: file
+      });
+    } catch (e) {
+      console.log(`An error occured while processing zitting ${meetingUri}: ${e}`);
+      res.status(400).send({'msg': `${e}`});
+    }
   } catch(e) {
     console.log(`No ziting found for this uuid: ${uuid}`);
     res.status(204).send({'msg': `No ziting found for this uuid: ${uuid}`});
