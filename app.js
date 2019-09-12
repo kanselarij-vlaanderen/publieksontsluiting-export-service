@@ -15,7 +15,8 @@ import {
   constructThemeInfo,
   constructDocumentsInfo,
   getDocumentsFromTmp,
-  constructDocumentsAndVersies
+  constructDocumentsAndVersies,
+  constructLinkNieuwsDocumentVersie
 } from './queries';
 
 app.get('/', function( req, res ) {
@@ -73,6 +74,10 @@ app.post('/export/:uuid', async function(req, res, next) {
 
     for (let documentInfo of documentsInfo) {
       await constructDocumentsAndVersies(exportGraph, tmpGraph, documentInfo);
+    }
+
+    for (let nieuwsbriefInfo of nieuwsbrievenInfo) {
+      await constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbriefInfo);
     }
 
     const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;

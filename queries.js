@@ -233,6 +233,7 @@ function constructDocumentsInfo(kaleidosGraph, procedurestapInfo) {
         mu:uuid ?uuidDocumentVersie ;
         ext:versieNummer ?versieNummer ;
         ext:file ?file .
+      ${sparqlEscapeUri(procedurestapInfo.s)} ext:bevatDocumentversie ?versie .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
@@ -302,6 +303,30 @@ async function constructDocumentsAndVersies(exportGraph, tmpGraph, documentInfo)
   `);
 }
 
+async function constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbriefInfo) {
+  return await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    INSERT {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ?s ext:file ?versie .
+      }
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ?s a besluitvorming:NieuwsbriefInfo ;
+          ^prov:generated ?subcase .
+        ?subcase ext:bevatDocumentversie ?versie .
+      }
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ?subcase ext:bevatDocumentversie ?versie .
+      }
+    }
+  `);
+}
+
 export {
   parseResult,
   getMeetingUriFromKaleidos,
@@ -315,5 +340,6 @@ export {
   constructThemeInfo,
   constructDocumentsInfo,
   getDocumentsFromTmp,
-  constructDocumentsAndVersies
+  constructDocumentsAndVersies,
+  constructLinkNieuwsDocumentVersie
 }
