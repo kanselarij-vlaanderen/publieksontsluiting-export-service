@@ -17,7 +17,9 @@ import {
   getDocumentsFromTmp,
   constructDocumentsAndVersies,
   constructLinkNieuwsDocumentVersie,
-  constructDocumentTypesInfo
+  constructDocumentTypesInfo,
+  getDocumentVersiesFromExport,
+  constructFilesInfo
 } from './queries';
 
 app.get('/', function( req, res ) {
@@ -86,6 +88,14 @@ app.post('/export/:uuid', async function(req, res, next) {
       await copyToLocalGraph(documentTypesInfoQuery, exportGraph);
     }
 
+    const resultDocumentVersiesInfo = await getDocumentVersiesFromExport(exportGraph);
+    const documentVersiesInfo = parseResult(resultDocumentVersiesInfo);
+
+    for (let documentVersieInfo of documentVersiesInfo) {
+      const filesInfoQuery = constructFilesInfo(kaleidosGraph, documentVersieInfo);
+      await copyToLocalGraph(filesInfoQuery, exportGraph);
+    }
+
     const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
     await writeToFile(exportGraph, file);
 
@@ -99,27 +109,5 @@ app.post('/export/:uuid', async function(req, res, next) {
     return next(error);
   }
 });
-
-// TODO remove this dummy function
-app.get('/ping-kaleidos', async function( req, res ) {
-  const result = await queryKaleidos(`SELECT * WHERE { GRAPH <http://mu.semte.ch/graphs/public> { ?s ?p ?o } } LIMIT 10`);
-  res.status(200).send(result);
-} );
-
-
-// TODO remove this dummy function
-app.get('/copy-kaleidos', async function( req, res ) {
-  const constructQuery = `
-    CONSTRUCT { ?s ?p ?o }
-    WHERE {
-         GRAPH <http://mu.semte.ch/graphs/public> {
-             ?s a <http://mu.semte.ch/vocabularies/ext/ThemaCode> ; ?p ?o .
-          }
-     }`;
-  await copyToLocalGraph(constructQuery, 'http://mu.semte.ch/graphs/copy-kaleidos');
-  res.status(204).send({});
-} );
-
-
 
 app.use(errorHandler);

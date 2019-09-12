@@ -311,7 +311,7 @@ async function constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbr
 
     INSERT {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s ext:file ?versie .
+        ?s ext:documentVersie ?versie .
       }
     }
     WHERE {
@@ -326,7 +326,6 @@ async function constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbr
   `);
 }
 
-constructDocumentTypesInfo
 function constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo) {
   return `
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -352,6 +351,43 @@ function constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo) {
   `;
 }
 
+async function getDocumentVersiesFromExport(exportGraph) {
+  return await query(`
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+    SELECT ?s
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ?s a ext:DocumentVersie .
+      }
+    }
+  `);
+}
+
+function constructFilesInfo(kaleidosGraph, documentVersieInfo) {
+  return `
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(documentVersieInfo.s)} ext:file ?file .
+      ?file a nfo:FileDataObject ;
+        mu:uuid ?uuid ;
+        nfo:fileName ?fileName .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(documentVersieInfo.s)} a ext:DocumentVersie ;
+          ext:file ?file .
+        ?file a nfo:FileDataObject ;
+          mu:uuid ?uuid ;
+          nfo:fileName ?fileName .
+      }
+    }
+  `;
+}
+
 export {
   parseResult,
   getMeetingUriFromKaleidos,
@@ -367,5 +403,7 @@ export {
   getDocumentsFromTmp,
   constructDocumentsAndVersies,
   constructLinkNieuwsDocumentVersie,
-  constructDocumentTypesInfo
+  constructDocumentTypesInfo,
+  getDocumentVersiesFromExport,
+  constructFilesInfo
 }
