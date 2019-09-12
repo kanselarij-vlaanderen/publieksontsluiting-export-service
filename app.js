@@ -16,7 +16,8 @@ import {
   constructDocumentsInfo,
   getDocumentsFromTmp,
   constructDocumentsAndVersies,
-  constructLinkNieuwsDocumentVersie
+  constructLinkNieuwsDocumentVersie,
+  constructDocumentTypesInfo
 } from './queries';
 
 app.get('/', function( req, res ) {
@@ -78,6 +79,11 @@ app.post('/export/:uuid', async function(req, res, next) {
 
     for (let nieuwsbriefInfo of nieuwsbrievenInfo) {
       await constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbriefInfo);
+    }
+
+    for (let documentInfo of documentsInfo) {
+      const documentTypesInfoQuery = constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo);
+      await copyToLocalGraph(documentTypesInfoQuery, exportGraph);
     }
 
     const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;

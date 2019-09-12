@@ -318,13 +318,38 @@ async function constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbr
       GRAPH ${sparqlEscapeUri(exportGraph)} {
         ?s a besluitvorming:NieuwsbriefInfo ;
           ^prov:generated ?subcase .
-        ?subcase ext:bevatDocumentversie ?versie .
       }
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
         ?subcase ext:bevatDocumentversie ?versie .
       }
     }
   `);
+}
+
+constructDocumentTypesInfo
+function constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo) {
+  return `
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+    CONSTRUCT {
+      ?documentType a ext:DocumentTypeCode;
+        mu:uuid ?uuid ;
+        skos:prefLabel ?label .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(documentInfo.s)} a foaf:Document ;
+          ext:documentType ?documentType .
+      }
+      GRAPH ${sparqlEscapeUri(publicGraph)} {
+        ?documentType a ext:DocumentTypeCode;
+          mu:uuid ?uuid ;
+          skos:prefLabel ?label .
+      }
+    }
+  `;
 }
 
 export {
@@ -341,5 +366,6 @@ export {
   constructDocumentsInfo,
   getDocumentsFromTmp,
   constructDocumentsAndVersies,
-  constructLinkNieuwsDocumentVersie
+  constructLinkNieuwsDocumentVersie,
+  constructDocumentTypesInfo
 }
