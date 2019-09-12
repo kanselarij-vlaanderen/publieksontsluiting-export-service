@@ -10,7 +10,13 @@ function parseResult(result) {
   const bindingKeys = result.head.vars;
   return result.results.bindings.map((row) => {
     const obj = {};
-    bindingKeys.forEach((key) => obj[key] = row[key].value);
+    bindingKeys.forEach((key) => {
+      if (row[key]) {
+        obj[key] = row[key].value;
+      } else {
+        obj[key] = null;
+      }
+    })
     return obj;
   });
 };
@@ -53,6 +59,7 @@ function constructProcedurestapInfo(kaleidosGraph, meetingUri) {
   PREFIX dbpedia: <http://dbpedia.org/ontology/>
   PREFIX dct: <http://purl.org/dc/terms/>
   PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+  PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
   CONSTRUCT {
     ?s a dbpedia:UnitOfWork ;
@@ -75,6 +82,7 @@ async function getProcedurestappenInfoFromTmp(tmpGraph) {
   return await query(`
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     SELECT ?s ?heeftBevoegde
     WHERE {
@@ -139,6 +147,161 @@ async function constructLinkZittingNieuws(exportGraph, meetingUri) {
   `);
 }
 
+function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
+  return `
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+    PREFIX person: <http://www.w3.org/ns/person#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(procedurestapInfo.heeftBevoegde)} a mandaat:Mandataris ;
+        mu:uuid ?uuidMandatee ;
+        dct:title ?title ;
+        mandaat:isBestuurlijkeAliasVan ?person .
+      ?person a person:Person ;
+        mu:uuid ?uuidPerson ;
+        foaf:name ?name .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(procedurestapInfo.heeftBevoegde)} a mandaat:Mandataris ;
+          mu:uuid ?uuidMandatee ;
+          dct:title ?title ;
+          mandaat:isBestuurlijkeAliasVan ?person .
+        ?person mu:uuid ?uuidPerson ;
+          foaf:name ?name .
+      }
+    }
+  `;
+}
+
+async function getNieuwsbriefInfoFromExport(exportGraph) {
+  return await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+    SELECT ?s
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ?s a besluitvorming:NieuwsbriefInfo .
+      }
+    }
+  `);
+}
+
+function constructThemeInfo(kaleidosGraph, publicGraph, nieuwsbriefInfo) {
+  return `
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+    CONSTRUCT {
+      ?s a ext:ThemaCode ;
+        mu:uuid ?uuid ;
+        skos:prefLabel ?label .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(publicGraph)} {
+        ?s a ext:ThemaCode ;
+          mu:uuid ?uuid ;
+          skos:prefLabel ?label .
+      }
+      GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(nieuwsbriefInfo.s)} ext:themesOfSubcase ?s .
+      }
+    }
+  `;
+}
+
+function constructDocumentsInfo(kaleidosGraph, procedurestapInfo) {
+  return `
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+      ?document a foaf:Document ;
+        besluitvorming:heeftVersie ?versie ;
+        mu:uuid ?uuidDocument ;
+        dct:title ?title ;
+        ext:documentType ?documentType .
+      ?versie a ext:DocumentVersie ;
+        mu:uuid ?uuidDocumentVersie ;
+        ext:versieNummer ?versieNummer ;
+        ext:file ?file .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ?document a foaf:Document ;
+          ext:toegangsniveauVoorDocument <http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e> ;
+          besluitvorming:heeftVersie ?versie ;
+          mu:uuid ?uuidDocument .
+        OPTIONAL { ?document dct:title ?title . }
+        OPTIONAL { ?document ext:documentType ?documentType . }
+        ?versie a ext:DocumentVersie ;
+          mu:uuid ?uuidDocumentVersie ;
+          ext:versieNummer ?versieNummer ;
+          ext:file ?file ;
+          ^ext:bevatDocumentversie ${sparqlEscapeUri(procedurestapInfo.s)}
+      }
+    }
+  `;
+}
+
+async function getDocumentsFromTmp(tmpGraph) {
+  return await query(`
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT ?s
+    WHERE {
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ?s a foaf:Document .
+      }
+    }
+  `);
+}
+
+async function constructDocumentsAndVersies(exportGraph, tmpGraph, documentInfo) {
+  return await query(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+
+    INSERT {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ${sparqlEscapeUri(documentInfo.s)} a foaf:Document ;
+          besluitvorming:heeftVersie ?documentVersie ;
+          mu:uuid ?uuidDocument ;
+          dct:title ?title ;
+          ext:documentType ?documentType .
+        ?documentVersie a ext:DocumentVersie ;
+          mu:uuid ?uuidDocumentVersie ;
+          ext:versieNummer ?versieNummer ;
+          ext:file ?file .
+      }
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ${sparqlEscapeUri(documentInfo.s)} a foaf:Document ;
+          besluitvorming:heeftVersie ?documentVersie ;
+          mu:uuid ?uuidDocument .
+        OPTIONAL { ?document dct:title ?title . }
+        OPTIONAL { ?document ext:documentType ?documentType . }
+        ?documentVersie a ext:DocumentVersie ;
+          mu:uuid ?uuidDocumentVersie ;
+          ext:versieNummer ?versieNummer ;
+          ext:file ?file .
+      }
+    }
+    ORDER BY DESC(?versieNummer) LIMIT 1
+  `);
+}
+
 export {
   parseResult,
   getMeetingUriFromKaleidos,
@@ -146,5 +309,11 @@ export {
   constructProcedurestapInfo,
   getProcedurestappenInfoFromTmp,
   constructNieuwsbriefInfo,
-  constructLinkZittingNieuws
+  constructLinkZittingNieuws,
+  constructMandateeAndPersonInfo,
+  getNieuwsbriefInfoFromExport,
+  constructThemeInfo,
+  constructDocumentsInfo,
+  getDocumentsFromTmp,
+  constructDocumentsAndVersies
 }
