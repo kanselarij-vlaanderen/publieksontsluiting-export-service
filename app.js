@@ -8,15 +8,16 @@ import {
   constructMeetingInfo,
   constructProcedurestapInfo,
   getProcedurestappenInfoFromTmp,
-  constructNieuwsbriefInfo
+  constructNieuwsbriefInfo,
+  constructLinkZittingNieuws
 } from './queries';
 
 app.get('/', function( req, res ) {
   res.send('Hello from publieksontsluiting-export-service');
 } );
 
-app.post('/export/:uuid', async function( req, res ) {
-  const timestamp = new Date().toISOString().replace(/\D/g,'').substring(0, 14);
+app.post('/export/:uuid', async function(req, res) {
+  const timestamp = new Date().toISOString().replace(/\D/g, '').substring(0, 14);
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
   const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
   const exportGraph = `http://mu.semte.ch/graphs/export/${timestamp}`;
@@ -26,38 +27,37 @@ app.post('/export/:uuid', async function( req, res ) {
   try {
     const meetingUri = parseResult(result)[0].s;
 
-    try {
-      const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid)
-      await copyToLocalGraph(meetingInfo, exportGraph);
+    const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid)
+    await copyToLocalGraph(meetingInfo, exportGraph);
 
-      const procedurestapInfo = constructProcedurestapInfo(kaleidosGraph, meetingUri)
-      await copyToLocalGraph(procedurestapInfo, tmpGraph);
+    const procedurestapInfo = constructProcedurestapInfo(kaleidosGraph, meetingUri)
+    await copyToLocalGraph(procedurestapInfo, tmpGraph);
 
-      const resultProcedurestappenInfo = await getProcedurestappenInfoFromTmp(tmpGraph);
-      const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
+    const resultProcedurestappenInfo = await getProcedurestappenInfoFromTmp(tmpGraph);
+    const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
 
-      await Promise.all(procedurestappenInfo.map(async (procedurestapInfo) => {
-        try {
-          const nieuwsbriefInfo = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo)
-          await copyToLocalGraph(nieuwsbriefInfo, exportGraph);
-        } catch (e) {
-          console.log(e);
-        }
-      }));
+    await Promise.all(procedurestappenInfo.map(async (procedurestapInfo) => {
+      try {
+        const nieuwsbriefInfo = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo)
+        await copyToLocalGraph(nieuwsbriefInfo, exportGraph);
+      } catch (e) {
+        console.log(JSON.stringify(e));
+      }
+    }));
 
-      const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
-      await writeToFile(exportGraph, file);
+    await constructLinkZittingNieuws(exportGraph, meetingUri);
 
-      res.status(200).send({
-        export: file
-      });
-    } catch (e) {
-      console.log(`An error occured while processing zitting ${meetingUri}: ${e}`);
-      res.status(400).send({'msg': `${e}`});
-    }
-  } catch(e) {
-    console.log(`No ziting found for this uuid: ${uuid}`);
-    res.status(204).send({'msg': `No ziting found for this uuid: ${uuid}`});
+    const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
+    await writeToFile(exportGraph, file);
+
+    res.status(200).send({
+      export: file
+    });
+  } catch (e) {
+    console.log(JSON.stringify(e));
+    const error = new Error(`An error occurred while processing zitting ${meetingUri}: ${JSON.stringify(e)}`);
+    error.status = 500;
+    return next(error);
   }
 });
 

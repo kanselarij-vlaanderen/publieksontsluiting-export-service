@@ -122,11 +122,29 @@ function constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo) {
   `;
 }
 
+async function constructLinkZittingNieuws(exportGraph, meetingUri) {
+  return await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+
+    INSERT {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ${sparqlEscapeUri(meetingUri)} <http://mu.semte.ch/vocabularies/ext/publishedNieuwsbriefInfo> ?s .
+      }
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        ?s a besluitvorming:NieuwsbriefInfo .
+      }
+    }
+  `);
+}
+
 export {
   parseResult,
   getMeetingUriFromKaleidos,
   constructMeetingInfo,
   constructProcedurestapInfo,
   getProcedurestappenInfoFromTmp,
-  constructNieuwsbriefInfo
+  constructNieuwsbriefInfo,
+  constructLinkZittingNieuws
 }
