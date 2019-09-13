@@ -369,20 +369,29 @@ function constructFilesInfo(kaleidosGraph, documentVersieInfo) {
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+    PREFIX nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>
 
     CONSTRUCT {
-      ${sparqlEscapeUri(documentVersieInfo.s)} ext:file ?file .
-      ?file a nfo:FileDataObject ;
-        mu:uuid ?uuid ;
-        nfo:fileName ?fileName .
+      ${sparqlEscapeUri(documentVersieInfo.s)} ext:file ?uploadFile .
+      ?uploadFile a nfo:FileDataObject ;
+        mu:uuid ?uuidUploadFile ;
+        nfo:fileName ?fileNameUploadFile .
+      ?physicalFile a nfo:FileDataObject ;
+        mu:uuid ?uuidPhysicalFile ;
+        nfo:fileName ?fileNamePhysicalFile ;
+        nie:dataSource ?uploadFile .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
         ${sparqlEscapeUri(documentVersieInfo.s)} a ext:DocumentVersie ;
-          ext:file ?file .
-        ?file a nfo:FileDataObject ;
-          mu:uuid ?uuid ;
-          nfo:fileName ?fileName .
+          ext:file ?uploadFile .
+        ?uploadFile a nfo:FileDataObject ;
+          mu:uuid ?uuidUploadFile ;
+          nfo:fileName ?fileNameUploadFile ;
+          ^nie:dataSource ?physicalFile .
+        ?physicalFile a nfo:FileDataObject ;
+          mu:uuid ?uuidPhysicalFile ;
+          nfo:fileName ?fileNamePhysicalFile .
       }
     }
   `;
