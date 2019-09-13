@@ -100,7 +100,8 @@ app.post('/export/:uuid', async function(req, res, next) {
     await writeToFile(exportGraph, file);
 
     res.status(200).send({
-      export: file
+      export: file,
+      graph: exportGraph
     });
   } catch (e) {
     console.log(JSON.stringify(e));
