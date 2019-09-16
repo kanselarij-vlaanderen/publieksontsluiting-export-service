@@ -370,15 +370,20 @@ function constructFilesInfo(kaleidosGraph, documentVersieInfo) {
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
     PREFIX nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>
+    PREFIX dbpedia: <http://dbpedia.org/ontology/>
 
     CONSTRUCT {
       ${sparqlEscapeUri(documentVersieInfo.s)} ext:file ?uploadFile .
       ?uploadFile a nfo:FileDataObject ;
         mu:uuid ?uuidUploadFile ;
-        nfo:fileName ?fileNameUploadFile .
+        nfo:fileName ?fileNameUploadFile ;
+        nfo:fileSize ?sizeUploadFile ;
+        dbpedia:fileExtension ?extensionUploadFile .
       ?physicalFile a nfo:FileDataObject ;
         mu:uuid ?uuidPhysicalFile ;
         nfo:fileName ?fileNamePhysicalFile ;
+        nfo:fileSize ?sizePhysicalFile ;
+        dbpedia:fileExtension ?extensionPhysicalFile ;
         nie:dataSource ?uploadFile .
     }
     WHERE {
@@ -388,10 +393,14 @@ function constructFilesInfo(kaleidosGraph, documentVersieInfo) {
         ?uploadFile a nfo:FileDataObject ;
           mu:uuid ?uuidUploadFile ;
           nfo:fileName ?fileNameUploadFile ;
+          nfo:fileSize ?sizeUploadFile ;
+          dbpedia:fileExtension ?extensionUploadFile ;
           ^nie:dataSource ?physicalFile .
         ?physicalFile a nfo:FileDataObject ;
           mu:uuid ?uuidPhysicalFile ;
-          nfo:fileName ?fileNamePhysicalFile .
+          nfo:fileName ?fileNamePhysicalFile ;
+          nfo:fileSize ?sizePhysicalFile ;
+          dbpedia:fileExtension ?extensionPhysicalFile .
       }
     }
   `;
