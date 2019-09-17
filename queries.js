@@ -159,6 +159,8 @@ function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
       ${sparqlEscapeUri(procedurestapInfo.heeftBevoegde)} a mandaat:Mandataris ;
         mu:uuid ?uuidMandatee ;
         dct:title ?title ;
+        mandaat:start ?start ;
+        mandaat:einde ?end ;
         mandaat:isBestuurlijkeAliasVan ?person .
       ?person a person:Person ;
         mu:uuid ?uuidPerson ;
@@ -171,7 +173,9 @@ function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
         ${sparqlEscapeUri(procedurestapInfo.heeftBevoegde)} a mandaat:Mandataris ;
           mu:uuid ?uuidMandatee ;
           dct:title ?title ;
+          mandaat:start ?start ;
           mandaat:isBestuurlijkeAliasVan ?person .
+        OPTIONAL { ${sparqlEscapeUri(procedurestapInfo.heeftBevoegde)} mandaat:einde ?end . }
         ?person mu:uuid ?uuidPerson ;
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
