@@ -162,6 +162,8 @@ function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
         mandaat:isBestuurlijkeAliasVan ?person .
       ?person a person:Person ;
         mu:uuid ?uuidPerson ;
+        foaf:firstName ?firstName ;
+        foaf:familyName ?familyName ;
         foaf:name ?name .
     }
     WHERE {
@@ -171,7 +173,9 @@ function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
           dct:title ?title ;
           mandaat:isBestuurlijkeAliasVan ?person .
         ?person mu:uuid ?uuidPerson ;
-          foaf:name ?name .
+          foaf:firstName ?firstName ;
+          foaf:familyName ?familyName .
+        OPTIONAL { ?person foaf:name ?name . }
       }
     }
   `;
