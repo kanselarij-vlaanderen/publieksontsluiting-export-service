@@ -69,7 +69,7 @@ async function updateJob(uuid, status) {
 
 async function addGraphAndFileToJob(uuid,graph, file) {
   const queryString = `
-  PREFIX    mu: <http://mu.sedmte.ch/vocabularies/core/>
+  PREFIX    mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX    ext: <http://mu.semte.ch/vocabularies/ext/>
   PREFIX dct: <http://purl.org/dc/terms/>
   WITH GRAPH ${sparqlEscapeUri("http://mu.semte.ch/graph/public-export-jobs")}
@@ -79,8 +79,6 @@ async function addGraphAndFileToJob(uuid,graph, file) {
     }
   WHERE {
         ?job a ext:PublicExportJob;
-                           dct:modified ?modified;
-                           ext:status ?status;
                            mu:uuid ${sparqlEscapeString(uuid)}.
 }`;
   await update(queryString);
