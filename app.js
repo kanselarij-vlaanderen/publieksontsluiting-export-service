@@ -1,4 +1,4 @@
-import { app, query, errorHandler } from 'mu';
+import { app, query, update, uuid, errorHandler } from 'mu';
 import { writeToFile } from './lib/graph-helpers';
 import { queryKaleidos } from './lib/kaleidos';
 import { copyToLocalGraph } from './lib/query-helpers';
@@ -22,23 +22,68 @@ import {
   constructFilesInfo
 } from './queries';
 
+import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './jobs';
+
+const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
+const publicGraph = `http://mu.semte.ch/graphs/public`;
+
 app.get('/', function( req, res ) {
   res.send('Hello from publieksontsluiting-export-service');
 } );
 
+app.get('/export/:uuid', async function(req,res,next) {
+  const result = parseResult((await getJob(req.params.uuid)));
+  const first_result = result[0];
+  if (first_result.status === FINISHED) {
+    res.status(200).send({status: first_result.status, export: first_result.file, graph: first_result.graph});
+  }
+  else {
+    res.status(406).send({status: first_result.status});
+  }
+});
+
 app.post('/export/:uuid', async function(req, res, next) {
+  const zitting_id = req.params.uuid;
+  const result = parseResult(await getMeetingUriFromKaleidos(kaleidosGraph, zitting_id));
+  if (result.length > 0) {
+    const job_id = uuid();
+    const zitting = result[0].s;
+    await createJob(job_id, zitting);
+    res.status(202).send({
+      job_id
+    });
+  }
+  else {
+    res.status(404).send({ error: `could not find ${uuid} in ${kaleidosGraph}`});
+  }
+});
+
+app.use(errorHandler);
+
+executeJobs();
+async function executeJobs() {
+  const job = await getFirstScheduledJobId();
+  if (job) {
+    console.log(`executing ${job}`);
+    await createExport(job);
+    executeJobs();
+  }
+  else {
+    setTimeout(executeJobs, 60000);
+  }
+}
+
+async function createExport(uuid) {
   const timestamp = new Date().toISOString().replace(/\D/g, '').substring(0, 14);
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
-  const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
   const exportGraph = `http://mu.semte.ch/graphs/export/${timestamp}`;
-  const publicGraph = `http://mu.semte.ch/graphs/public`;
-  const uuid = req.params.uuid;
-
-  const result = await getMeetingUriFromKaleidos(kaleidosGraph, uuid);
+  const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
+  const result = await getJob(uuid);
+  const job = parseResult(result)[0];
   try {
-    const meetingUri = parseResult(result)[0].s;
-
-    const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid);
+    await updateJob(uuid, STARTED);
+    const meetingUri = job.zitting;
+    const meetingInfo = constructMeetingInfo(kaleidosGraph, meetingUri);
     await copyToLocalGraph(meetingInfo, exportGraph);
 
     const procedurestapInfoQuery = constructProcedurestapInfo(kaleidosGraph, meetingUri);
@@ -95,20 +140,12 @@ app.post('/export/:uuid', async function(req, res, next) {
       const filesInfoQuery = constructFilesInfo(kaleidosGraph, documentVersieInfo);
       await copyToLocalGraph(filesInfoQuery, exportGraph);
     }
-
-    const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
     await writeToFile(exportGraph, file);
-
-    res.status(200).send({
-      export: file,
-      graph: exportGraph
-    });
+    await addGraphAndFileToJob(uuid, exportGraph, file);
+    await updateJob(uuid, FINISHED);
+    console.log(`finished job ${uuid}`);
   } catch (e) {
-    console.log(JSON.stringify(e));
-    const error = new Error(`An error occurred while processing zitting ${uuid}: ${JSON.stringify(e)}`);
-    error.status = 500;
-    return next(error);
+    console.log(e);
+    await updateJob(uuid, FAILED);
   }
-});
-
-app.use(errorHandler);
+}

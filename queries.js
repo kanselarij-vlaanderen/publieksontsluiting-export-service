@@ -33,20 +33,20 @@ async function getMeetingUriFromKaleidos(kaleidosGraph, uuid) {
   `);
 }
 
-function constructMeetingInfo(kaleidosGraph, uuid) {
+function constructMeetingInfo(kaleidosGraph, zitting) {
   return `
     PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 
     CONSTRUCT {
-      ?s a besluit:Zitting ;
-        mu:uuid ${sparqlEscapeString(uuid)} ;
+      ${sparqlEscapeUri(zitting)} a besluit:Zitting ;
+        mu:uuid ?uuid;
         besluit:geplandeStart ?geplandeStart .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
-        ?s a besluit:Zitting ;
-          mu:uuid ${sparqlEscapeString(uuid)} ;
+         ${sparqlEscapeUri(zitting)} a besluit:Zitting ;
+          mu:uuid ?uuid ;
           besluit:geplandeStart ?geplandeStart .
       }
     }
