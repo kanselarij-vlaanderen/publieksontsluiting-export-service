@@ -15,7 +15,7 @@ import {
   constructThemeInfo,
   constructDocumentsInfo,
   getDocumentsFromTmp,
-  constructDocumentsAndVersies,
+  constructDocumentsAndLatestVersie,
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
   getDocumentVersiesFromExport,
@@ -34,12 +34,16 @@ app.post('/export/:uuid', async function(req, res, next) {
   const publicGraph = `http://mu.semte.ch/graphs/public`;
   const uuid = req.params.uuid;
 
-  const result = await getMeetingUriFromKaleidos(kaleidosGraph, uuid);
   try {
-    const meetingUri = parseResult(result)[0].s;
+    const meeting = parseResult(await getMeetingUriFromKaleidos(kaleidosGraph, uuid))[0];
+    if (!meeting)
+      throw new Error(`No meeting found with uuid ${uuid}`);
+
+    const meetingUri = meeting.s;
 
     const meetingInfo = constructMeetingInfo(kaleidosGraph, uuid);
     await copyToLocalGraph(meetingInfo, exportGraph);
+    console.log(`Exported info of zitting ${uuid}`);
 
     const procedurestapInfoQuery = constructProcedurestapInfo(kaleidosGraph, meetingUri);
     await copyToLocalGraph(procedurestapInfoQuery, tmpGraph);
@@ -50,14 +54,20 @@ app.post('/export/:uuid', async function(req, res, next) {
     for (let procedurestapInfo of procedurestappenInfo) {
       const nieuwsbriefInfoQuery = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo);
       await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
-    }
 
-    await constructLinkZittingNieuws(exportGraph, meetingUri);
-
-    for (let procedurestapInfo of procedurestappenInfo) {
       const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo);
       await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
+
+      const documentsInfoQuery = constructDocumentsInfo(kaleidosGraph, procedurestapInfo);
+      await copyToLocalGraph(documentsInfoQuery, tmpGraph);
+
+      
     }
+
+    // TODO insert mededelingen as newsbrief info in export graph
+    // TODO insert foaf:Document of mededeling in export graph
+
+    await constructLinkZittingNieuws(exportGraph, meetingUri);
 
     const resultNieuwsbrievenInfo = await getNieuwsbriefInfoFromExport(exportGraph);
     const nieuwsbrievenInfo = parseResult(resultNieuwsbrievenInfo);
@@ -67,25 +77,17 @@ app.post('/export/:uuid', async function(req, res, next) {
       await copyToLocalGraph(themeInfoQuery, exportGraph);
     }
 
-    for (let procedurestapInfo of procedurestappenInfo) {
-      const documentsInfoQuery = constructDocumentsInfo(kaleidosGraph, procedurestapInfo);
-      await copyToLocalGraph(documentsInfoQuery, tmpGraph);
-    }
-
     const resultDocumentsInfo = await getDocumentsFromTmp(tmpGraph);
     const documentsInfo = parseResult(resultDocumentsInfo);
 
     for (let documentInfo of documentsInfo) {
-      await constructDocumentsAndVersies(exportGraph, tmpGraph, documentInfo);
+      await constructDocumentsAndLatestVersie(exportGraph, tmpGraph, documentInfo);
+      const documentTypesInfoQuery = constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo);
+      await copyToLocalGraph(documentTypesInfoQuery, exportGraph);
     }
 
     for (let nieuwsbriefInfo of nieuwsbrievenInfo) {
       await constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbriefInfo);
-    }
-
-    for (let documentInfo of documentsInfo) {
-      const documentTypesInfoQuery = constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo);
-      await copyToLocalGraph(documentTypesInfoQuery, exportGraph);
     }
 
     const resultDocumentVersiesInfo = await getDocumentVersiesFromExport(exportGraph);

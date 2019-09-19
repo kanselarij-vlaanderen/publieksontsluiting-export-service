@@ -16,7 +16,7 @@ function parseResult(result) {
       } else {
         obj[key] = null;
       }
-    })
+    });
     return obj;
   });
 };
@@ -64,16 +64,24 @@ function constructProcedurestapInfo(kaleidosGraph, meetingUri) {
   CONSTRUCT {
     ?s a dbpedia:UnitOfWork ;
       mu:uuid ?uuid ;
+      ext:wordtGetoondAlsMededeling "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
+      ext:prioriteit ?priority ;
       besluitvorming:heeftBevoegde ?heeftBevoegde .
   }
   WHERE {
     GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
       ${sparqlEscapeUri(meetingUri)} besluitvorming:behandelt ?agenda .
       ?agenda dct:hasPart ?agendapunt .
+      ?agendapunt ext:wordtGetoondAlsMededeling ?isMededeling ;
+                  ext:prioriteit ?priorty .
+      FILTER(?isMededeling = "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean>)
       ?s a dbpedia:UnitOfWork ;
-        besluitvorming:isGeagendeerdVia ?agendapunt ;
         mu:uuid ?uuid ;
-        besluitvorming:heeftBevoegde ?heeftBevoegde .
+        besluitvorming:isGeagendeerdVia ?agendapunt .
+
+      OPTIONAL {
+        ?s besluitvorming:heeftBevoegde ?heeftBevoegde 
+      }
     }
   }`;
 }
@@ -274,7 +282,7 @@ async function getDocumentsFromTmp(tmpGraph) {
   `);
 }
 
-async function constructDocumentsAndVersies(exportGraph, tmpGraph, documentInfo) {
+async function constructDocumentsAndLatestVersie(exportGraph, tmpGraph, documentInfo) {
   return await query(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -427,7 +435,7 @@ export {
   constructThemeInfo,
   constructDocumentsInfo,
   getDocumentsFromTmp,
-  constructDocumentsAndVersies,
+  constructDocumentsAndLatestVersie,
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
   getDocumentVersiesFromExport,
