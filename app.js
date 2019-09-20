@@ -19,7 +19,8 @@ import {
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
   getDocumentVersiesFromExport,
-  constructFilesInfo
+  constructFilesInfo,
+  calculatePriority
 } from './queries';
 
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './jobs';
@@ -105,6 +106,8 @@ async function createExport(uuid) {
       const documentsInfoQuery = constructDocumentsInfo(kaleidosGraph, procedurestapInfo);
       await copyToLocalGraph(documentsInfoQuery, tmpGraph);
     }
+
+    await calculatePriority(exportGraph);
 
     // TODO insert mededelingen as newsbrief info in export graph
     // TODO insert foaf:Document of mededeling in export graph

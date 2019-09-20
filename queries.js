@@ -1,4 +1,4 @@
-import { query, sparqlEscapeString, sparqlEscapeUri } from 'mu';
+import { query, update, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
 import { queryKaleidos } from './lib/kaleidos';
 
 /**
@@ -42,7 +42,7 @@ function constructMeetingInfo(kaleidosGraph, zitting) {
       ${sparqlEscapeUri(zitting)} a besluit:Zitting ;
         mu:uuid ?uuid;
         besluit:geplandeStart ?geplandeStart .
-    }
+   }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
          ${sparqlEscapeUri(zitting)} a besluit:Zitting ;
@@ -80,7 +80,7 @@ function constructProcedurestapInfo(kaleidosGraph, meetingUri) {
         besluitvorming:isGeagendeerdVia ?agendapunt .
 
       OPTIONAL {
-        ?s besluitvorming:heeftBevoegde ?heeftBevoegde 
+        ?s besluitvorming:heeftBevoegde ?heeftBevoegde .
       }
     }
   }`;
@@ -130,8 +130,8 @@ function constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo) {
           dct:title ?title ;
           ext:htmlInhoud ?htmlInhoud .
         OPTIONAL { ?s ext:themesOfSubcase ?themesOfSubcase .}
-        ${sparqlEscapeUri(procedurestapInfo.s)} besluitvorming:heeftBevoegde ?heeftBevoegde ;
-          besluitvorming:isGeagendeerdVia ?agendapunt .
+        OPTIONAL { ${sparqlEscapeUri(procedurestapInfo.s)} besluitvorming:heeftBevoegde ?heeftBevoegde . }
+        ${sparqlEscapeUri(procedurestapInfo.s)} besluitvorming:isGeagendeerdVia ?agendapunt .
         ?agendapunt ext:prioriteit ?priorty .
       }
     }
@@ -191,6 +191,101 @@ function constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo) {
       }
     }
   `;
+}
+
+/* Agendaitems should be grouped and ordered according to the priority of the assigned mandatee.
+   Since we don't have correct historical priority data for ministers,
+   we will group agendaitems per minister and let the agendaitem with the lowest
+   number (priority) determine the priority of the minister.
+
+   E.g. minister X has assigned agendaItem 3 and agendaItem 5
+        minister Y has assigned agendaItem 4
+   Final order of the agendaItems will be: 3 - 5 - 4
+*/
+async function calculatePriority(exportGraph) {
+  const result = parseResult(await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    SELECT ?newsItem ?number ?mandatee ?title
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+         ?newsItem a besluitvorming:NieuwsbriefInfo .
+         ?procedurestap prov:generated ?newsItem ;
+             besluitvorming:heeftBevoegde ?mandatee ;
+             besluitvorming:isGeagendeerdVia ?agendaItem .
+         ?agendaItem ext:prioriteit ?number .
+         ?mandatee dct:title ?title .
+      }
+    }
+  `));
+
+  // [ { newsItem, number, mandatee }, ... ]
+
+  // Group results per newsItem
+  const uniqueNewsItems = {};
+  result.forEach( (r) => {
+    const key = r.newsItem;
+    uniqueNewsItems[key] = uniqueNewsItems[key] || { number: parseInt(r.number), mandatees: [] };
+    if (!uniqueNewsItems[key].mandatees.includes(r.title))
+      uniqueNewsItems[key].mandatees.push(r.title);
+  });
+  console.log(`Found ${Object.keys(uniqueNewsItems).length} news items`);
+
+  // { <news-1>: { number, mandatees }, <news-2>: { number, mandatees }, ... }
+
+  // Create 'unique' key for group of mandatees per item
+  const groupPriorities = {};
+  const newsItems = [];
+  for (let uri in uniqueNewsItems) {
+    const item = uniqueNewsItems[uri];
+    item.mandatees.sort();
+    const groupKey = item.mandatees.join();
+    groupPriorities[groupKey] = 0;
+    newsItems.push({ uri, groupKey, number: item.number, mandatees: item.mandatees });
+  }
+  console.log(`Found ${Object.keys(groupPriorities).length} different groups of mandatees`);
+
+  // [ { uri: news-1, groupKey, number, mandatees, ... } ]
+
+  // Determine priority of each group of mandatees based on the lowest agendaitem number assigned to that group
+  for (let groupKey in groupPriorities) {
+    groupPriorities[groupKey] = Math.min(...newsItems.filter(i => i.groupKey == groupKey).map(i => i.number));
+  }
+  console.log(`Determined groups of mandatees priorities: ${JSON.stringify(groupPriorities)}`);
+
+  // Order group of mandatees, lowest priority first (= most important)
+  const orderedGroupKeys = [];
+  for (let groupKey in groupPriorities) {
+    orderedGroupKeys.push( { key: groupKey, priority: groupPriorities[groupKey] } );
+  }
+  orderedGroupKeys.sort( (a, b) => (a.priority > b.priority ? 1 : -1 ));
+  console.log(`Sorted groups of mandatees priorities: ${JSON.stringify(orderedGroupKeys)}`);
+
+  // Set overall priority per newsItem based on groupPriority and agendaItem number
+  const maxItemNumber = Math.max(...newsItems.map(i => i.number));
+  for (let i=0; i < orderedGroupKeys.length; i++) {
+    const groupKey = orderedGroupKeys[i].key;
+    const baseGroupPriority = i * maxItemNumber;  // make sure priorities between groups don't overlap
+    console.log(`Base priority for group ${i} set to ${baseGroupPriority}`);
+    newsItems.filter(item => item.groupKey == groupKey).forEach(item => item.priority = baseGroupPriority + item.number);
+  }
+
+  // Persist overall priority on newsItem in store
+  const triples = newsItems.map( (item) => `<${item.uri}> ext:prioriteit ${sparqlEscapeInt(item.priority)} . ` );
+
+  await update(`
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+    INSERT DATA {
+      GRAPH <${exportGraph}> {
+        ${triples.join('\n')}
+      }
+    }
+  `);
 }
 
 async function getNieuwsbriefInfoFromExport(exportGraph) {
@@ -439,5 +534,6 @@ export {
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
   getDocumentVersiesFromExport,
-  constructFilesInfo
+  constructFilesInfo,
+  calculatePriority
 }
