@@ -8,19 +8,24 @@ import {
   constructMeetingInfo,
   constructProcedurestapInfo,
   getProcedurestappenInfoFromTmp,
-  constructNieuwsbriefInfo,
+  selectMededelingen,
+  constructNieuwsbriefInfoForProcedurestap,
+  constructNieuwsbriefInfoForAgendapunt,
   constructLinkZittingNieuws,
   constructMandateeAndPersonInfo,
   getNieuwsbriefInfoFromExport,
   constructThemeInfo,
-  constructDocumentsInfo,
+  constructDocumentsInfoForProcedurestap,
+  constructDocumentsInfoForAgendapunt,
   getDocumentsFromTmp,
   constructDocumentsAndLatestVersie,
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
   getDocumentVersiesFromExport,
   constructFilesInfo,
-  calculatePriority
+  calculatePriorityNewsItems,
+  calculatePriorityMededelingen,
+  addNewsItemCategory
 } from './queries';
 
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './jobs';
@@ -97,20 +102,36 @@ async function createExport(uuid) {
     const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
 
     for (let procedurestapInfo of procedurestappenInfo) {
-      const nieuwsbriefInfoQuery = constructNieuwsbriefInfo(kaleidosGraph, procedurestapInfo);
+      const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
       await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
-
-      const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo);
+      const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo.heeftBevoegde);
       await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
-
-      const documentsInfoQuery = constructDocumentsInfo(kaleidosGraph, procedurestapInfo);
+      const documentsInfoQuery = constructDocumentsInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
       await copyToLocalGraph(documentsInfoQuery, tmpGraph);
     }
 
-    await calculatePriority(exportGraph);
+    await calculatePriorityNewsItems(exportGraph);
 
-    // TODO insert mededelingen as newsbrief info in export graph
-    // TODO insert foaf:Document of mededeling in export graph
+    const mededelingUris = parseResult(await selectMededelingen(kaleidosGraph, meetingUri));
+    for (let mededeling of mededelingUris) {
+      if (mededeling.procedurestap) { // mededeling has a KB
+        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap);
+        await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
+        const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, mededeling.procedurestap);
+        await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
+        const documentsInfoQuery = constructDocumentsInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap);
+        await copyToLocalGraph(documentsInfoQuery, tmpGraph);
+      } else { // construct 'fake' nieuwsbrief info based on agendapunt title
+        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, mededeling.agendapunt);
+        await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
+        const documentsInfoQuery = constructDocumentsInfoForAgendapunt(kaleidosGraph, mededeling.agendapunt);
+        await copyToLocalGraph(documentsInfoQuery, tmpGraph);
+      }
+    }
+
+    await calculatePriorityMededelingen(exportGraph);
+
+    await addNewsItemCategory(exportGraph);
 
     await constructLinkZittingNieuws(exportGraph, meetingUri);
 
@@ -142,6 +163,7 @@ async function createExport(uuid) {
       const filesInfoQuery = constructFilesInfo(kaleidosGraph, documentVersieInfo);
       await copyToLocalGraph(filesInfoQuery, exportGraph);
     }
+
     await writeToFile(exportGraph, file);
     await addGraphAndFileToJob(uuid, exportGraph, file);
     await updateJob(uuid, FINISHED);
