@@ -2,6 +2,7 @@ import { app, query, update, uuid, errorHandler } from 'mu';
 import { writeToFile } from './lib/graph-helpers';
 import { queryKaleidos } from './lib/kaleidos';
 import { copyToLocalGraph } from './lib/query-helpers';
+import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
   parseResult,
   getMeetingUriFromKaleidos,
@@ -24,11 +25,9 @@ import {
   getDocumentVersiesFromExport,
   constructFilesInfo,
   calculatePriorityNewsItems,
-  calculatePriorityMededelingen,
-  addNewsItemCategory
+  calculatePriorityMededelingen
 } from './queries';
 
-import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './jobs';
 
 const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
 const publicGraph = `http://mu.semte.ch/graphs/public`;
@@ -55,6 +54,7 @@ app.post('/export/:uuid', async function(req, res, next) {
     const job_id = uuid();
     const zitting = result[0].s;
     await createJob(job_id, zitting);
+    executeJobs();
     res.status(202).send({
       job_id
     });
@@ -98,9 +98,7 @@ async function createExport(uuid) {
     const procedurestapInfoQuery = constructProcedurestapInfo(kaleidosGraph, meetingUri);
     await copyToLocalGraph(procedurestapInfoQuery, tmpGraph);
 
-    const resultProcedurestappenInfo = await getProcedurestappenInfoFromTmp(tmpGraph);
-    const procedurestappenInfo = parseResult(resultProcedurestappenInfo);
-
+    const procedurestappenInfo = parseResult(await getProcedurestappenInfoFromTmp(tmpGraph));
     for (let procedurestapInfo of procedurestappenInfo) {
       const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
       await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
@@ -109,13 +107,12 @@ async function createExport(uuid) {
       const documentsInfoQuery = constructDocumentsInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
       await copyToLocalGraph(documentsInfoQuery, tmpGraph);
     }
-
     await calculatePriorityNewsItems(exportGraph);
 
     const mededelingUris = parseResult(await selectMededelingen(kaleidosGraph, meetingUri));
     for (let mededeling of mededelingUris) {
       if (mededeling.procedurestap) { // mededeling has a KB
-        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap);
+        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap, "mededeling");
         await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
         const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, mededeling.procedurestap);
         await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
@@ -128,10 +125,7 @@ async function createExport(uuid) {
         await copyToLocalGraph(documentsInfoQuery, tmpGraph);
       }
     }
-
     await calculatePriorityMededelingen(exportGraph);
-
-    await addNewsItemCategory(exportGraph);
 
     await constructLinkZittingNieuws(exportGraph, meetingUri);
 

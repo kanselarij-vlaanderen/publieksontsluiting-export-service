@@ -125,13 +125,14 @@ async function getProcedurestappenInfoFromTmp(tmpGraph) {
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
         ?s a dbpedia:UnitOfWork ;
+          ext:wordtGetoondAlsMededeling "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
           besluitvorming:heeftBevoegde ?heeftBevoegde .
       }
     }
   `);
 }
 
-function constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapUri) {
+function constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapUri, category = "nieuws") {
   return `
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
@@ -144,7 +145,8 @@ function constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapUr
         mu:uuid ?uuid ;
         dct:title ?title ;
         ext:htmlInhoud ?htmlInhoud ;
-        ext:themesOfSubcase ?themesOfSubcase .
+        ext:themesOfSubcase ?themesOfSubcase ;
+        ext:newsItemCategory ${sparqlEscapeString(category)} .
       ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde ;
         prov:generated ?s ;
         besluitvorming:isGeagendeerdVia ?agendapunt .
@@ -152,22 +154,22 @@ function constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapUr
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(procedurestapUri)} prov:generated ?s .
+        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:isGeagendeerdVia ?agendapunt .
+        ?agendapunt ext:prioriteit ?priority .
         ?s a besluitvorming:NieuwsbriefInfo ;
           ext:afgewerkt \"true\"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
-          ^prov:generated ${sparqlEscapeUri(procedurestapUri)} ;
           mu:uuid ?uuid ;
           dct:title ?title ;
           ext:htmlInhoud ?htmlInhoud .
         OPTIONAL { ?s ext:themesOfSubcase ?themesOfSubcase .}
         OPTIONAL { ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde . }
-        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:isGeagendeerdVia ?agendapunt .
-        ?agendapunt ext:prioriteit ?priority .
       }
     }
   `;
 }
 
-function constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, agendapuntUri) {
+function constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, agendapuntUri, category = "mededeling") {
   const newsUuid = uuid();
   const newsUri = `http://kanselarij.vo.data.gift/nieuwsbrief-infos/${newsUuid}`;
 
@@ -184,7 +186,8 @@ function constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, agendapuntUri) {
         mu:uuid ${sparqlEscapeString(newsUuid)} ;
         dct:title ?title ;
         ext:htmlInhoud ?content ;
-        ext:mededelingPrioriteit ?priority .
+        ext:mededelingPrioriteit ?priority ;
+        ext:newsItemCategory ${sparqlEscapeString(category)} .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
@@ -379,41 +382,6 @@ async function calculatePriorityMededelingen(exportGraph) {
     }
   `);
   };
-}
-
-
-async function addNewsItemCategory(exportGraph) {
-  return await update(`
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-
-    INSERT {
-      GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s ext:newsItemCategory "nieuws" .
-      }
-    } WHERE {
-      GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s a besluitvorming:NieuwsbriefInfo ;
-          ext:wordtGetoondAlsMededeling \"true\"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
-      }
-    }
-
-    ;
-
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-
-    INSERT {
-      GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s ext:newsItemCategory "mededeling" .
-      }
-    } WHERE {
-      GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s a besluitvorming:NieuwsbriefInfo ;
-          ext:wordtGetoondAlsMededeling \"false\"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
-      }
-    }
-  `);
 }
 
 async function getNieuwsbriefInfoFromExport(exportGraph) {
@@ -675,6 +643,5 @@ export {
   getDocumentVersiesFromExport,
   constructFilesInfo,
   calculatePriorityNewsItems,
-  calculatePriorityMededelingen,
-  addNewsItemCategory
+  calculatePriorityMededelingen
 }
