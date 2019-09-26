@@ -453,12 +453,12 @@ function constructDocumentsInfo(kaleidosGraph, documentVersiePredicate, resource
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
         ?document a foaf:Document ;
-          ext:toegangsniveauVoorDocument <http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e> ;
           besluitvorming:heeftVersie ?versie ;
           mu:uuid ?uuidDocument .
         OPTIONAL { ?document dct:title ?title . }
         OPTIONAL { ?document ext:documentType ?documentType . }
         ?versie a ext:DocumentVersie ;
+          ext:toegangsniveauVoorDocumentVersie <http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e> ;
           mu:uuid ?uuidDocumentVersie ;
           ext:versieNummer ?versieNummer ;
           ext:file ?file ;
