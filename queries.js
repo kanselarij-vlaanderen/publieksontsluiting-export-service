@@ -458,7 +458,6 @@ function constructDocumentsInfo(kaleidosGraph, documentVersiePredicate, resource
         OPTIONAL { ?document dct:title ?title . }
         OPTIONAL { ?document ext:documentType ?documentType . }
         ?versie a ext:DocumentVersie ;
-          ext:toegangsniveauVoorDocumentVersie <http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e> ;
           mu:uuid ?uuidDocumentVersie ;
           ext:versieNummer ?versieNummer ;
           ext:file ?file ;
@@ -478,6 +477,27 @@ async function getDocumentsFromTmp(tmpGraph) {
         ?s a foaf:Document .
       }
     }
+  `);
+}
+
+async function getLastVersieAccessLevel(tmpGraph, documentInfo) {
+  return await query(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+
+    SELECT ?accessLevel
+    WHERE {
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ${sparqlEscapeUri(documentInfo.s)} a foaf:Document ;
+          besluitvorming:heeftVersie ?documentVersie .
+        ?documentVersie a ext:DocumentVersie ;
+          ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
+          ext:versieNummer ?versieNummer .
+      }
+    }
+    ORDER BY DESC(?versieNummer) LIMIT 1
   `);
 }
 
@@ -637,6 +657,7 @@ export {
   constructDocumentsInfoForProcedurestap,
   constructDocumentsInfoForAgendapunt,
   getDocumentsFromTmp,
+  getLastVersieAccessLevel,
   constructDocumentsAndLatestVersie,
   constructLinkNieuwsDocumentVersie,
   constructDocumentTypesInfo,
