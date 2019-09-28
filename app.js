@@ -81,10 +81,10 @@ async function executeJobs() {
 }
 
 async function createExport(uuid) {
-  const timestamp = new Date().toISOString().replace(/\D/g, '').substring(0, 14);
+  const timestamp = new Date().toISOString().replace(/\D/g, '');
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
   const exportGraph = `http://mu.semte.ch/graphs/export/${timestamp}`;
-  const file = `/data/exports/${timestamp}-publieksontsluiting.ttl`;
+  const file = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-publieksontsluiting-${uuid}.ttl`;
   const result = await getJob(uuid);
   const job = parseResult(result)[0];
 
