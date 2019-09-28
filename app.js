@@ -145,7 +145,7 @@ async function createExport(uuid) {
       const resultAccessLevelOfLastDocumentVersies = await getLastVersieAccessLevel(tmpGraph, documentInfo);
       const accessLevelOfLastDocumentVersies = parseResult(resultAccessLevelOfLastDocumentVersies);
       if (accessLevelOfLastDocumentVersies.length > 0) {
-        const accessLevelOfLastDocumentVersie = parseResult(accessLevelOfLastDocumentVersies)[0].accessLevel;
+        const accessLevelOfLastDocumentVersie = accessLevelOfLastDocumentVersies[0].accessLevel;
         if (accessLevelOfLastDocumentVersie == "http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e") { // last document versie is public
           await constructDocumentsAndLatestVersie(exportGraph, tmpGraph, documentInfo);
           const documentTypesInfoQuery = constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo);

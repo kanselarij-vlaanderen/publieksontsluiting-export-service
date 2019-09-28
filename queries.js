@@ -182,6 +182,7 @@ function constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, agendapuntUri, cat
     PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
 
     CONSTRUCT {
+      ${sparqlEscapeUri(agendapuntUri)} prov:generated ${sparqlEscapeUri(newsUri)} .
       ${sparqlEscapeUri(newsUri)} a besluitvorming:NieuwsbriefInfo ;
         mu:uuid ${sparqlEscapeString(newsUuid)} ;
         dct:title ?title ;
@@ -447,21 +448,23 @@ function constructDocumentsInfo(kaleidosGraph, documentVersiePredicate, resource
       ?versie a ext:DocumentVersie ;
         mu:uuid ?uuidDocumentVersie ;
         ext:versieNummer ?versieNummer ;
+        ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
         ext:file ?file .
       ${sparqlEscapeUri(resourceUri)} ext:bevatDocumentversie ?versie .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kaleidosGraph)} {
+        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
+        ?versie a ext:DocumentVersie ;
+          mu:uuid ?uuidDocumentVersie ;
+          ext:versieNummer ?versieNummer ;
+          ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
+          ext:file ?file .
         ?document a foaf:Document ;
           besluitvorming:heeftVersie ?versie ;
           mu:uuid ?uuidDocument .
         OPTIONAL { ?document dct:title ?title . }
         OPTIONAL { ?document ext:documentType ?documentType . }
-        ?versie a ext:DocumentVersie ;
-          mu:uuid ?uuidDocumentVersie ;
-          ext:versieNummer ?versieNummer ;
-          ext:file ?file ;
-          ^${documentVersiePredicate} ${sparqlEscapeUri(resourceUri)} .
       }
     }
   `;
@@ -546,16 +549,16 @@ async function constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbr
 
     INSERT {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s ext:documentVersie ?versie .
+        ?newsInfo ext:documentVersie ?versie .
       }
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ?s a besluitvorming:NieuwsbriefInfo ;
-          ^prov:generated ?subcase .
+        ?subCaseOrAgendapunt prov:generated ?newsInfo .
+        ?newsInfo a besluitvorming:NieuwsbriefInfo .
       }
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-        ?subcase ext:bevatDocumentversie ?versie .
+        ?subCaseOrAgendapunt ext:bevatDocumentversie ?versie .
       }
     }
   `);
