@@ -1,34 +1,35 @@
 import { app, query, update, uuid, errorHandler } from 'mu';
+import uniq from 'lodash.uniq';
 import { writeToFile } from './lib/graph-helpers';
 import { queryKaleidos } from './lib/kaleidos';
 import { copyToLocalGraph } from './lib/query-helpers';
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
-  parseResult,
-  getMeetingUriFromKaleidos,
-  constructMeetingInfo,
-  constructProcedurestapInfo,
-  getProcedurestappenInfoFromTmp,
-  selectMededelingen,
-  constructNieuwsbriefInfoForProcedurestap,
-  constructNieuwsbriefInfoForAgendapunt,
-  constructLinkZittingNieuws,
-  constructMandateeAndPersonInfo,
-  getNieuwsbriefInfoFromExport,
-  constructThemeInfo,
-  constructDocumentsInfoForProcedurestap,
-  constructDocumentsInfoForAgendapunt,
-  getDocumentsFromTmp,
-  getLastVersieAccessLevel,
-  constructDocumentsAndLatestVersie,
-  constructLinkNieuwsDocumentVersie,
-  constructDocumentTypesInfo,
-  getDocumentVersiesFromExport,
-  constructFilesInfo,
+  copySession,
+  copyThemaCodes,
+  copyDocumentTypes,
+  copyNewsItemForProcedurestap,
+  copyNewsItemForAgendapunt,
+  copyMandateeAndPerson,
+  copyDocumentsForProcedurestap,
+  copyDocumentsForAgendapunt,
+  copyFileTriples,
+  getSession,
+  getProcedurestappenOfSession,
+  getMededelingenOfSession,
+  getDocuments,
+  getLatestVersion,
+  insertDocumentAndLatestVersion,
+  linkNewsItemsToDocumentVersion,
   calculatePriorityNewsItems,
   calculatePriorityMededelingen
 } from './queries';
 
+const EXPORT_SINCE = new Date(Date.parse('2006-07-19T00:00:00.000Z'));
+const MEDEDELINGEN_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
+const DOCUMENTS_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
+// const DOCUMENTS_SINCE = new Date(Date.parse('2020-09-08T00:00:00.000Z'));
+const PUBLIC_ACCESS_LEVEL = 'http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e';
 
 const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
 const publicGraph = `http://mu.semte.ch/graphs/public`;
@@ -38,30 +39,28 @@ app.get('/', function( req, res ) {
 } );
 
 app.get('/export/:uuid', async function(req,res,next) {
-  const result = parseResult((await getJob(req.params.uuid)));
-  const firstResult = result[0];
-  if (firstResult.status === FINISHED) {
-    res.status(200).send({status: firstResult.status, export: firstResult.file, graph: firstResult.graph});
+  const job = (await getJob(req.params.uuid));
+  if (job.status === FINISHED) {
+    res.status(200).send({status: job.status, export: job.file, graph: job.graph});
   }
   else {
-    res.status(406).send({status: firstResult.status});
+    res.status(406).send({status: job.status});
   }
 });
 
 app.post('/export/:uuid', async function(req, res, next) {
-  const zitting_id = req.params.uuid;
-  const result = parseResult(await getMeetingUriFromKaleidos(kaleidosGraph, zitting_id));
-  if (result.length > 0) {
-    const job_id = uuid();
-    const zitting = result[0].s;
-    await createJob(job_id, zitting);
+  const sessionId = req.params.uuid;
+  const session = await getSession(sessionId);
+  if (session) {
+    const jobId = uuid();
+    await createJob(jobId, session);
     executeJobs();
     res.status(202).send({
-      job_id
+      jobId
     });
   }
   else {
-    res.status(404).send({ error: `could not find ${uuid} in ${kaleidosGraph}`});
+    res.status(404).send({ error: `Could not find session with uuid ${sessionId} in Kaleidos`});
   }
 });
 
@@ -81,93 +80,99 @@ async function executeJobs() {
 }
 
 async function createExport(uuid) {
+  const job = await getJob(uuid);
+  const sessionDate = new Date(Date.parse(job.zittingDatum));
+  console.log(sessionDate);
+
+  if (sessionDate < EXPORT_SINCE) {
+    console.log(`Public export didn't exist yet on ${sessionDate}. Nothing will be exported`);
+    return;
+  }
+
   const timestamp = new Date().toISOString().replace(/\D/g, '');
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
-  const exportGraph = `http://mu.semte.ch/graphs/export/${timestamp}`;
-  const file = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-publieksontsluiting-${uuid}.ttl`;
-  const result = await getJob(uuid);
-  const job = parseResult(result)[0];
+  const exportFileBase = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-${uuid}`;
 
   try {
     await updateJob(uuid, STARTED);
-    const meetingUri = job.zitting;
-    const meetingInfo = constructMeetingInfo(kaleidosGraph, meetingUri);
+    const sessionUri = job.zitting;
 
-    await copyToLocalGraph(meetingInfo, exportGraph);
-    console.log(`Exported info of zitting ${uuid}`);
+    const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
+    let file = `${exportFileBase}-news-items.ttl`;
 
-    const procedurestapInfoQuery = constructProcedurestapInfo(kaleidosGraph, meetingUri);
-    await copyToLocalGraph(procedurestapInfoQuery, tmpGraph);
+    await copySession(sessionUri, exportGraphNewsItems);
+    await copyThemaCodes(exportGraphNewsItems); // TODO add as migration
 
-    const procedurestappenInfo = parseResult(await getProcedurestappenInfoFromTmp(tmpGraph));
-    for (let procedurestapInfo of procedurestappenInfo) {
-      const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
-      await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
-      const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, procedurestapInfo.heeftBevoegde);
-      await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
-      const documentsInfoQuery = constructDocumentsInfoForProcedurestap(kaleidosGraph, procedurestapInfo.s);
-      await copyToLocalGraph(documentsInfoQuery, tmpGraph);
+    // News items dump
+    const procedurestappen = await getProcedurestappenOfSession(sessionUri);
+    for (let procedurestap of procedurestappen) {
+      await copyNewsItemForProcedurestap(procedurestap.uri, sessionUri, exportGraphNewsItems);
+      await copyDocumentsForProcedurestap(procedurestap.uri, tmpGraph);
     }
-    await calculatePriorityNewsItems(exportGraph);
-
-    const mededelingUris = parseResult(await selectMededelingen(kaleidosGraph, meetingUri));
-    for (let mededeling of mededelingUris) {
-      if (mededeling.procedurestap) { // mededeling has a KB
-        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap, "mededeling");
-        await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
-        const mandateeAndPersonInfoQuery = constructMandateeAndPersonInfo(kaleidosGraph, mededeling.procedurestap);
-        await copyToLocalGraph(mandateeAndPersonInfoQuery, exportGraph);
-        const documentsInfoQuery = constructDocumentsInfoForProcedurestap(kaleidosGraph, mededeling.procedurestap);
-        await copyToLocalGraph(documentsInfoQuery, tmpGraph);
-      } else { // construct 'fake' nieuwsbrief info based on agendapunt title
-        const nieuwsbriefInfoQuery = constructNieuwsbriefInfoForAgendapunt(kaleidosGraph, mededeling.agendapunt);
-        await copyToLocalGraph(nieuwsbriefInfoQuery, exportGraph);
-        const documentsInfoQuery = constructDocumentsInfoForAgendapunt(kaleidosGraph, mededeling.agendapunt);
-        await copyToLocalGraph(documentsInfoQuery, tmpGraph);
-      }
+    const mandatees = uniq(procedurestappen.map(p => p.mandatee).filter(m => m != null));
+    for (let mandatee of mandatees) {
+      await copyMandateeAndPerson(mandatee, exportGraphNewsItems);
     }
-    await calculatePriorityMededelingen(exportGraph);
+    await calculatePriorityNewsItems(exportGraphNewsItems);
 
-    await constructLinkZittingNieuws(exportGraph, meetingUri);
+    await writeToFile(exportGraphNewsItems, file);
 
-    const resultNieuwsbrievenInfo = await getNieuwsbriefInfoFromExport(exportGraph);
-    const nieuwsbrievenInfo = parseResult(resultNieuwsbrievenInfo);
 
-    for (let nieuwsbriefInfo of nieuwsbrievenInfo) {
-      const themeInfoQuery = constructThemeInfo(kaleidosGraph, publicGraph, nieuwsbriefInfo);
-      await copyToLocalGraph(themeInfoQuery, exportGraph);
-    }
+    // Mededelingen dump
 
-    const resultDocumentsInfo = await getDocumentsFromTmp(tmpGraph);
-    const documentsInfo = parseResult(resultDocumentsInfo);
+    const exportGraphMededelingen = `http://mu.semte.ch/graphs/export/${timestamp}-mededelingen`;
+    if (sessionDate > MEDEDELINGEN_SINCE) {
+      file = `${exportFileBase}-mededelingen.ttl`;
 
-    for (let documentInfo of documentsInfo) {
-      const resultAccessLevelOfLastDocumentVersies = await getLastVersieAccessLevel(tmpGraph, documentInfo);
-      const accessLevelOfLastDocumentVersies = parseResult(resultAccessLevelOfLastDocumentVersies);
-      if (accessLevelOfLastDocumentVersies.length > 0) {
-        const accessLevelOfLastDocumentVersie = accessLevelOfLastDocumentVersies[0].accessLevel;
-        if (accessLevelOfLastDocumentVersie == "http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e") { // last document versie is public
-          await constructDocumentsAndLatestVersie(exportGraph, tmpGraph, documentInfo);
-          const documentTypesInfoQuery = constructDocumentTypesInfo(kaleidosGraph, publicGraph, documentInfo);
-          await copyToLocalGraph(documentTypesInfoQuery, exportGraph);
+      const mededelingen = await getMededelingenOfSession(sessionUri);
+      for (let mededeling of mededelingen) {
+        if (mededeling.procedurestap) { // mededeling has a KB
+          await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri,  exportGraphMededelingen, "mededeling");
+          await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
+        } else { // construct 'fake' nieuwsbrief info based on agendapunt title
+          await copyNewsItemForAgendapunt(mededeling.agendapunt, sessionUri,  exportGraphMededelingen);
+          await copyDocumentsForAgendapunt(mededeling.agendapunt, tmpGraph);
         }
       }
+      await calculatePriorityMededelingen(exportGraphMededelingen);
+
+      await writeToFile(exportGraphMededelingen, file);
+    } else {
+      console.log(`Public export of mededelingen didn't exist yet on ${sessionDate}. Mededelingen will be exported`);
     }
 
-    for (let nieuwsbriefInfo of nieuwsbrievenInfo) {
-      await constructLinkNieuwsDocumentVersie(exportGraph, tmpGraph, nieuwsbriefInfo);
+    // Documents dump
+
+    let exportGraphDocuments = null;
+    if (sessionDate > DOCUMENTS_SINCE) {
+       exportGraphDocuments = `http://mu.semte.ch/graphs/export/${timestamp}-documents`;
+      file = `${exportFileBase}-documents.ttl`;
+
+      const documents = await getDocuments(tmpGraph);
+
+      for (let document of documents) {
+        const version = await getLatestVersion(tmpGraph, document.uri);
+        if (version && version.accessLevel == PUBLIC_ACCESS_LEVEL) {
+          document.version = version.uri;
+          await insertDocumentAndLatestVersion(document.uri, version.uri, tmpGraph, exportGraphDocuments);
+        }
+      }
+      await copyDocumentTypes(exportGraphDocuments); // TODO add as migration
+
+      await linkNewsItemsToDocumentVersion([exportGraphNewsItems, exportGraphMededelingen], tmpGraph, exportGraphDocuments);
+
+      for (let document of documents) {
+        if (document.version) {
+          await copyFileTriples(document.version, exportGraphDocuments);
+        }
+      }
+
+      await writeToFile(exportGraphDocuments, file);
+    } else {
+      console.log(`Public export of documents didn't exist yet on ${sessionDate}. Documents will be exported`);
     }
 
-    const resultDocumentVersiesInfo = await getDocumentVersiesFromExport(exportGraph);
-    const documentVersiesInfo = parseResult(resultDocumentVersiesInfo);
-
-    for (let documentVersieInfo of documentVersiesInfo) {
-      const filesInfoQuery = constructFilesInfo(kaleidosGraph, documentVersieInfo);
-      await copyToLocalGraph(filesInfoQuery, exportGraph);
-    }
-
-    await writeToFile(exportGraph, file);
-    await addGraphAndFileToJob(uuid, exportGraph, file);
+    await addGraphAndFileToJob(uuid, exportGraphDocuments, file);
     await updateJob(uuid, FINISHED);
     console.log(`finished job ${uuid}`);
   } catch (e) {
