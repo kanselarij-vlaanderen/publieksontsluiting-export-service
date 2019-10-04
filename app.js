@@ -35,7 +35,7 @@ const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
 const publicGraph = `http://mu.semte.ch/graphs/public`;
 
 app.get('/', function( req, res ) {
-  res.send('Hello from publieksontsluiting-export-service');
+  res.send('Hello from valvas-export-service');
 } );
 
 app.get('/export/:uuid', async function(req,res,next) {

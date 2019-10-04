@@ -1,17 +1,17 @@
-# Publieksontsluiting export service
+# Valvas export service
 
-Microservice that exports news for the Publieksontsluiting application
+Microservice that exports news for the Valvas application
 
 ## Installation
 
 Add the following snippet to your `docker-compose.yml`:
 ```
   export:
-    image: kanselarij-vlaanderen/publieksontsluiting-export-service
+    image: kanselarij-vlaanderen/valvas-export-service
     links:
       - database:database
     volumes:
-      - ./data/exports/publieksontsluiting:/data/exports
+      - ./data/exports/valvas:/data/exports
 ```
 
 The final result of the export will be written to the volume mounted in `/data/exports`.
