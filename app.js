@@ -54,7 +54,6 @@ app.post('/export/:uuid', async function(req, res, next) {
   if (session) {
     const jobId = uuid();
     await createJob(jobId, session);
-    executeJobs();
     res.status(202).send({
       jobId
     });
