@@ -130,8 +130,9 @@ async function createExport(uuid) {
           await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri,  exportGraphMededelingen, "mededeling");
           await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
         } else { // construct 'fake' nieuwsbrief info based on agendapunt title
-          await copyNewsItemForAgendapunt(mededeling.agendapunt, sessionUri,  exportGraphMededelingen);
-          await copyDocumentsForAgendapunt(mededeling.agendapunt, tmpGraph);
+// TODO fix when there is a direct link from agendapunt to nieuwsbriefinfo
+//          await copyNewsItemForAgendapunt(mededeling.agendapunt, sessionUri,  exportGraphMededelingen);
+//          await copyDocumentsForAgendapunt(mededeling.agendapunt, tmpGraph);
         }
       }
       await calculatePriorityMededelingen(exportGraphMededelingen);
