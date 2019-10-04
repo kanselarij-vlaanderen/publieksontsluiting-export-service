@@ -90,8 +90,9 @@ async function createExport(uuid) {
   }
 
   const timestamp = new Date().toISOString().replace(/\D/g, '');
+  const sessionTimestamp = sessionDate.toISOString().replace(/\D/g, '');
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
-  const exportFileBase = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-${uuid}`;
+  const exportFileBase = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-${uuid}-${sessionTimestamp}`;
 
   try {
     await updateJob(uuid, STARTED);
