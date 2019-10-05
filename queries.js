@@ -465,6 +465,9 @@ async function calculatePriorityNewsItems(exportGraph) {
     }
   `));
 
+  if (result.length == 0)
+    return; // No news items. No priorities to calculate.
+
   // [ { newsItem, number, mandatee }, ... ]
 
   // Group results per newsItem
@@ -546,6 +549,9 @@ async function calculatePriorityMededelingen(exportGraph) {
       }
     }
   `));
+
+  if (results.length == 0)
+    return; // No mededelingen. No priorities to calculate.
 
   const basePriority = 100000; // make sure they have a lower priority than the news items
 
