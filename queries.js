@@ -4,6 +4,7 @@ import { parseResult, copyToLocalGraph } from './lib/query-helpers';
 
 const kanselarijGraph = "http://mu.semte.ch/graphs/organizations/kanselarij";
 const publicGraph = "http://mu.semte.ch/graphs/public";
+const publicAccessLevel = 'http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e';
 
 async function copySession(uri, graph) {
   return await copyToLocalGraph(`
@@ -156,7 +157,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
       ?versie a ext:DocumentVersie ;
         mu:uuid ?uuidDocumentVersie ;
         ext:versieNummer ?versieNummer ;
-        ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
+        ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
         ext:file ?file .
       ?document a foaf:Document ;
         besluitvorming:heeftVersie ?versie ;
@@ -170,7 +171,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
         ?versie a ext:DocumentVersie ;
           mu:uuid ?uuidDocumentVersie ;
           ext:versieNummer ?versieNummer ;
-          ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
+          ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
           ext:file ?file .
         ?document a foaf:Document ;
           besluitvorming:heeftVersie ?versie ;
@@ -356,13 +357,12 @@ async function getLatestVersion(tmpGraph, documentUri) {
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
 
-    SELECT ?uri ?accessLevel
+    SELECT ?uri
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
         ${sparqlEscapeUri(documentUri)} a foaf:Document ;
           besluitvorming:heeftVersie ?uri .
         ?uri a ext:DocumentVersie ;
-          ext:toegangsniveauVoorDocumentVersie ?accessLevel ;
           ext:versieNummer ?versieNummer .
       }
     }

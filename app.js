@@ -28,8 +28,6 @@ import {
 const EXPORT_SINCE = new Date(Date.parse('2006-07-19T00:00:00.000Z'));
 const MEDEDELINGEN_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
 const DOCUMENTS_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
-// const DOCUMENTS_SINCE = new Date(Date.parse('2020-09-08T00:00:00.000Z'));
-const PUBLIC_ACCESS_LEVEL = 'http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e';
 
 const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
 const publicGraph = `http://mu.semte.ch/graphs/public`;
@@ -153,7 +151,7 @@ async function createExport(uuid) {
 
       for (let document of documents) {
         const version = await getLatestVersion(tmpGraph, document.uri);
-        if (version && version.accessLevel == PUBLIC_ACCESS_LEVEL) {
+        if (version) {
           document.version = version.uri;
           await insertDocumentAndLatestVersion(document.uri, version.uri, tmpGraph, exportGraphDocuments);
         }
