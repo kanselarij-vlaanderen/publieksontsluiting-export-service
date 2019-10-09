@@ -32,7 +32,7 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
   // for mededelingen it's checked at the level of the agendapunt whether it should be exported
   // via the ext:toonInKortBestek property
 
-  return await copyToLocalGraph(`
+  await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -44,10 +44,8 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
         mu:uuid ?uuid ;
         dct:title ?title ;
         ext:htmlInhoud ?htmlInhoud ;
-        ext:themesOfSubcase ?themesOfSubcase ;
         ext:newsItemCategory ${sparqlEscapeString(category)} .
-      ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde ;
-        prov:generated ?newsItem ;
+      ${sparqlEscapeUri(procedurestapUri)} prov:generated ?newsItem ;
         besluitvorming:isGeagendeerdVia ?agendapunt .
       ?agendapunt ext:prioriteit ?priority .
       ${sparqlEscapeUri(sessionUri)} <http://mu.semte.ch/vocabularies/ext/publishedNieuwsbriefInfo> ?newsItem .
@@ -61,15 +59,48 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
           mu:uuid ?uuid ;
           dct:title ?title ;
           ext:htmlInhoud ?htmlInhoud .
-        OPTIONAL { ?newsItem ext:themesOfSubcase ?themesOfSubcase .}
-        OPTIONAL { ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde . }
+      }
+    }
+  `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    CONSTRUCT {
+       ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+      }
+    }
+  `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    CONSTRUCT {
+      ?newsItem ext:themesOfSubcase ?themesOfSubcase .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(procedurestapUri)} prov:generated ?newsItem .
+        ?newsItem ext:themesOfSubcase ?themesOfSubcase .
       }
     }
   `, graph);
 }
 
 async function copyMandateeAndPerson(mandateeUri, graph) {
-  return await copyToLocalGraph(`
+  await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
@@ -81,13 +112,11 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
         mu:uuid ?uuidMandatee ;
         dct:title ?title ;
         mandaat:start ?start ;
-        mandaat:einde ?end ;
         mandaat:isBestuurlijkeAliasVan ?person .
       ?person a person:Person ;
         mu:uuid ?uuidPerson ;
         foaf:firstName ?firstName ;
-        foaf:familyName ?familyName ;
-        foaf:name ?name .
+        foaf:familyName ?familyName .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
@@ -96,11 +125,26 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
           dct:title ?title ;
           mandaat:start ?start ;
           mandaat:isBestuurlijkeAliasVan ?person .
-        OPTIONAL { ${sparqlEscapeUri(mandateeUri)} mandaat:einde ?end . }
         ?person mu:uuid ?uuidPerson ;
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
-        OPTIONAL { ?person foaf:name ?name . }
+      }
+    }
+  `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+    PREFIX person: <http://www.w3.org/ns/person#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(mandateeUri)} mandaat:einde ?end .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(mandateeUri)} mandaat:einde ?end .
       }
     }
   `, graph);
@@ -115,7 +159,7 @@ async function copyDocumentsForAgendapunt(agendapuntUri, graph) {
 }
 
 async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
-  return copyToLocalGraph(`
+  await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -131,9 +175,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
         ext:file ?file .
       ?document a foaf:Document ;
         besluitvorming:heeftVersie ?versie ;
-        mu:uuid ?uuidDocument ;
-        dct:title ?title ;
-        ext:documentType ?documentType .
+        mu:uuid ?uuidDocument .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
@@ -146,8 +188,44 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
         ?document a foaf:Document ;
           besluitvorming:heeftVersie ?versie ;
           mu:uuid ?uuidDocument .
-        OPTIONAL { ?document dct:title ?title . }
-        OPTIONAL { ?document ext:documentType ?documentType . }
+      }
+    }
+  `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+      ?document ext:documentType ?documentType .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
+        ?document besluitvorming:heeftVersie ?versie ;
+          ext:documentType ?documentType .
+      }
+    }
+  `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+      ?document dct:title ?title .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
+        ?document besluitvorming:heeftVersie ?versie ;
+          dct:title ?title .
       }
     }
   `, graph);
