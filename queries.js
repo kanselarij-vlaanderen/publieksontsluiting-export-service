@@ -256,10 +256,6 @@ async function getProcedurestappenOfSession(sessionUri) {
   // TODO ext:afgewerkt should be replaced with ext:inNieuwsbrief
   // but it seems this property is only true if the mailchimp communication has been sent?
   // Should we rely on the Mailchimp flag in the export for Valvas?
-
-  // TODO relation zitting to agenda should be reversed once the closure of agenda is fixed in Kaleidos
-  // Use ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
-  // instead of ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)}
   return parseResult(await queryKaleidos(`
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -270,6 +266,7 @@ async function getProcedurestappenOfSession(sessionUri) {
     SELECT ?uri ?mandatee
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
         ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} .
         ?agenda dct:hasPart ?agendapunt .
         ?agendapunt ext:wordtGetoondAlsMededeling "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
@@ -286,10 +283,6 @@ async function getProcedurestappenOfSession(sessionUri) {
 }
 
 async function getMededelingenOfSession(sessionUri) {
-  // TODO relation zitting to agenda should be reversed once the closure of agenda is fixed in Kaleidos
-  // Use ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
-  // instead of ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)}
-
   return parseResult(await queryKaleidos(`
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX dbpedia: <http://dbpedia.org/ontology/>
@@ -301,7 +294,7 @@ async function getMededelingenOfSession(sessionUri) {
   SELECT ?agendapunt ?priority ?procedurestap
   WHERE {
     GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-      ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} .
+      ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
       ?agenda dct:hasPart ?agendapunt .
       ?agendapunt ext:wordtGetoondAlsMededeling "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
                   ext:prioriteit ?priority ;
