@@ -28,7 +28,7 @@ async function copySession(uri, graph) {
 
 async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph, category = "nieuws") {
   // for news items it's checked at the level of the procedure step whether it should be exported
-  // via the ext:afgewerkt property
+  // via the ext:inNieuwsbrief property
   // for mededelingen it's checked at the level of the agendapunt whether it should be exported
   // via the ext:toonInKortBestek property
 
@@ -331,9 +331,6 @@ async function getSession(uuid) {
 
 
 async function getProcedurestappenOfSession(sessionUri) {
-  // TODO ext:afgewerkt should be replaced with ext:inNieuwsbrief
-  // but it seems this property is only true if the mailchimp communication has been sent?
-  // Should we rely on the Mailchimp flag in the export for Valvas?
   return parseResult(await queryKaleidos(`
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -354,7 +351,7 @@ async function getProcedurestappenOfSession(sessionUri) {
           prov:generated ?newsItem .
         OPTIONAL { ?uri besluitvorming:heeftBevoegde ?mandatee . }
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
-          ext:afgewerkt "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
+          ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
       }
     }
   `));
