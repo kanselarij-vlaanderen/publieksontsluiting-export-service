@@ -148,6 +148,24 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
       }
     }
   `, graph);
+
+  await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+    PREFIX person: <http://www.w3.org/ns/person#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    CONSTRUCT {
+       ?person foaf:name ?name .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(mandateeUri)} mandaat:isBestuurlijkeAliasVan ?person .
+        ?person foaf:name ?name .
+      }
+    }
+  `, graph);
 }
 
 async function copyDocumentsForProcedurestap(procedurestapUri, graph) {
@@ -586,12 +604,16 @@ async function calculatePriorityMededelingen(exportGraph) {
   const results = parseResult(await query(`
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
 
     SELECT ?newsItem ?priority
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
          ?newsItem a besluitvorming:NieuwsbriefInfo ;
-            ext:mededelingPrioriteit ?priority .
+            ext:newsItemCategory "mededeling" .
+         ?procedurestap prov:generated ?newsItem ;
+             besluitvorming:isGeagendeerdVia ?agendaItem .
+         ?agendaItem ext:prioriteit ?priority .
       }
     }
   `));

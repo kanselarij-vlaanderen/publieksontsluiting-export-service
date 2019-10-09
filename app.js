@@ -99,11 +99,13 @@ async function createExport(uuid) {
 
     // News items dump
     const procedurestappen = await getProcedurestappenOfSession(sessionUri);
+    console.log(`Found ${procedurestappen.length} news items`);
     for (let procedurestap of procedurestappen) {
       await copyNewsItemForProcedurestap(procedurestap.uri, sessionUri, exportGraphNewsItems);
       await copyDocumentsForProcedurestap(procedurestap.uri, tmpGraph);
     }
     const mandatees = uniq(procedurestappen.map(p => p.mandatee).filter(m => m != null));
+    console.log(`Found ${mandatees.length} mandatees`);
     for (let mandatee of mandatees) {
       await copyMandateeAndPerson(mandatee, exportGraphNewsItems);
     }
@@ -119,6 +121,7 @@ async function createExport(uuid) {
       file = `${exportFileBase}-mededelingen.ttl`;
 
       const mededelingen = await getMededelingenOfSession(sessionUri);
+      console.log(`Found ${mededelingen.length} mededelingen`);
       for (let mededeling of mededelingen) {
         await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri, exportGraphMededelingen, "mededeling");
         await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
