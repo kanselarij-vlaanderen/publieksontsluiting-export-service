@@ -384,7 +384,6 @@ async function insertDocumentAndLatestVersion(documentUri, versionUri, tmpGraph,
           ext:file ?file .
       }
     }
-    ORDER BY DESC(?versieNummer) LIMIT 1
   `);
 }
 
