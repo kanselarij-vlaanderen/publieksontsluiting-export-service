@@ -311,8 +311,7 @@ async function getMededelingenOfSession(sessionUri) {
         mu:uuid ?uuid ;
         besluitvorming:isGeagendeerdVia ?agendapunt ;
         prov:generated ?nieuwsbriefInfo .
-      ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo ;
-        ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
+      ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo .
     }
   }`));
 }
