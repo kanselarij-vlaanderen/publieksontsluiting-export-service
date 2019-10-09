@@ -6,10 +6,7 @@ import { copyToLocalGraph } from './lib/query-helpers';
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
   copySession,
-  copyThemaCodes,
-  copyDocumentTypes,
   copyNewsItemForProcedurestap,
-  copyNewsItemForAgendapunt,
   copyMandateeAndPerson,
   copyDocumentsForProcedurestap,
   copyDocumentsForAgendapunt,
@@ -99,7 +96,6 @@ async function createExport(uuid) {
     let file = `${exportFileBase}-news-items.ttl`;
 
     await copySession(sessionUri, exportGraphNewsItems);
-    await copyThemaCodes(exportGraphNewsItems); // TODO add as migration
 
     // News items dump
     const procedurestappen = await getProcedurestappenOfSession(sessionUri);
@@ -124,14 +120,8 @@ async function createExport(uuid) {
 
       const mededelingen = await getMededelingenOfSession(sessionUri);
       for (let mededeling of mededelingen) {
-        if (mededeling.procedurestap) { // mededeling has a KB
-          await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri,  exportGraphMededelingen, "mededeling");
-          await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
-        } else { // construct 'fake' nieuwsbrief info based on agendapunt title
-// TODO fix when there is a direct link from agendapunt to nieuwsbriefinfo
-//          await copyNewsItemForAgendapunt(mededeling.agendapunt, sessionUri,  exportGraphMededelingen);
-//          await copyDocumentsForAgendapunt(mededeling.agendapunt, tmpGraph);
-        }
+        await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri, exportGraphMededelingen, "mededeling");
+        await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
       }
       await calculatePriorityMededelingen(exportGraphMededelingen);
 
@@ -156,7 +146,6 @@ async function createExport(uuid) {
           await insertDocumentAndLatestVersion(document.uri, version.uri, tmpGraph, exportGraphDocuments);
         }
       }
-      await copyDocumentTypes(exportGraphDocuments); // TODO add as migration
 
       await linkNewsItemsToDocumentVersion([exportGraphNewsItems, exportGraphMededelingen], tmpGraph, exportGraphDocuments);
 

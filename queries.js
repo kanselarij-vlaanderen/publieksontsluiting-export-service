@@ -27,6 +27,11 @@ async function copySession(uri, graph) {
 }
 
 async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph, category = "nieuws") {
+  // for news items it's checked at the level of the procedure step whether it should be exported
+  // via the ext:afgewerkt property
+  // for mededelingen it's checked at the level of the agendapunt whether it should be exported
+  // via the ext:toonInKortBestek property
+
   return await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
@@ -53,46 +58,11 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
         ${sparqlEscapeUri(procedurestapUri)} besluitvorming:isGeagendeerdVia ?agendapunt .
         ?agendapunt ext:prioriteit ?priority .
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
-          ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
           mu:uuid ?uuid ;
           dct:title ?title ;
           ext:htmlInhoud ?htmlInhoud .
         OPTIONAL { ?newsItem ext:themesOfSubcase ?themesOfSubcase .}
         OPTIONAL { ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde . }
-      }
-    }
-  `, graph);
-}
-
-async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, category = "mededeling") {
-  const newsUuid = uuid();
-  const newsUri = `http://kanselarij.vo.data.gift/nieuwsbrief-infos/${newsUuid}`;
-
-  return await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-    PREFIX prov: <http://www.w3.org/ns/prov#>
-    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
-
-    CONSTRUCT {
-      ${sparqlEscapeUri(agendapuntUri)} prov:generated ${sparqlEscapeUri(newsUri)} .
-      ${sparqlEscapeUri(newsUri)} a besluitvorming:NieuwsbriefInfo ;
-        mu:uuid ${sparqlEscapeString(newsUuid)} ;
-        dct:title ?title ;
-        ext:htmlInhoud ?content ;
-        ext:mededelingPrioriteit ?priority ;
-        ext:newsItemCategory ${sparqlEscapeString(category)} .
-      ${sparqlEscapeUri(sessionUri)} <http://mu.semte.ch/vocabularies/ext/publishedNieuwsbriefInfo> ${sparqlEscapeUri(newsUri)} .
-    }
-    WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(agendapuntUri)} a besluit:Agendapunt ;
-          dct:title ?content ;
-          ext:prioriteit ?priority .
-        OPTIONAL { ${sparqlEscapeUri(agendapuntUri)} dct:alternative ?shortTitle }
-        BIND(COALESCE(?shortTitle, ?content) as ?title)
       }
     }
   `, graph);
@@ -283,6 +253,9 @@ async function getSession(uuid) {
 
 
 async function getProcedurestappenOfSession(sessionUri) {
+  // TODO ext:afgewerkt should be replaced with ext:inNieuwsbrief
+  // but it seems this property is only true if the mailchimp communication has been sent?
+  // Should we rely on the Mailchimp flag in the export for Valvas?
   return parseResult(await queryKaleidos(`
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -302,7 +275,7 @@ async function getProcedurestappenOfSession(sessionUri) {
           prov:generated ?newsItem .
         OPTIONAL { ?uri besluitvorming:heeftBevoegde ?mandatee . }
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
-          ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
+          ext:afgewerkt "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
       }
     }
   `));
@@ -323,16 +296,15 @@ async function getMededelingenOfSession(sessionUri) {
       ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
       ?agenda dct:hasPart ?agendapunt .
       ?agendapunt ext:wordtGetoondAlsMededeling "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
-                  ext:prioriteit ?priority .
+                  ext:prioriteit ?priority ;
+                  ext:toonInKortBestek  "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
 
-      OPTIONAL {
-        ?procedurestap a dbpedia:UnitOfWork ;
-          mu:uuid ?uuid ;
-          besluitvorming:isGeagendeerdVia ?agendapunt ;
-          prov:generated ?nieuwsbriefInfo .
-        ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo ;
-          ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
-      }
+     ?procedurestap a dbpedia:UnitOfWork ;
+        mu:uuid ?uuid ;
+        besluitvorming:isGeagendeerdVia ?agendapunt ;
+        prov:generated ?nieuwsbriefInfo .
+      ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo ;
+        ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
     }
   }`));
 }
@@ -574,7 +546,6 @@ export {
   copyThemaCodes,
   copyDocumentTypes,
   copyNewsItemForProcedurestap,
-  copyNewsItemForAgendapunt,
   copyMandateeAndPerson,
   copyDocumentsForProcedurestap,
   copyDocumentsForAgendapunt,
