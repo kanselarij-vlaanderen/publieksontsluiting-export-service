@@ -136,7 +136,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
     }
   `, graph);
 
-  const optionalMandateeProperties = ['mandaat:einde', 'foaf:name', 'foaf:nickname'];
+  const optionalMandateeProperties = ['mandaat:einde', 'mandaat:rangorde', 'foaf:name', 'foaf:nickname'];
 
   for (let prop of optionalMandateeProperties) {
     await copyToLocalGraph(`
@@ -147,11 +147,11 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
       CONSTRUCT {
-        ${sparqlEscapeUri(mandateeUri)} ${prop} ?end .
+        ${sparqlEscapeUri(mandateeUri)} ${prop} ?o .
       }
       WHERE {
         GRAPH ?g {
-          ${sparqlEscapeUri(mandateeUri)} ${prop} ?end .
+          ${sparqlEscapeUri(mandateeUri)} ${prop} ?o .
         }
         VALUES ?g {
           ${sparqlEscapeUri(kanselarijGraph)}
