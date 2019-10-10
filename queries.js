@@ -129,47 +129,37 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
       }
-      VALUES {
+      VALUES ?g {
         ${sparqlEscapeUri(kanselarijGraph)}
         ${sparqlEscapeUri(publicGraph)}
       }
     }
   `, graph);
 
-  await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
-    PREFIX person: <http://www.w3.org/ns/person#>
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+  const optionalMandateeProperties = ['mandaat:einde', 'foaf:name', 'foaf:nickname'];
 
-    CONSTRUCT {
-      ${sparqlEscapeUri(mandateeUri)} mandaat:einde ?end .
-    }
-    WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(mandateeUri)} mandaat:einde ?end .
+  for (let prop of optionalMandateeProperties) {
+    await copyToLocalGraph(`
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+      PREFIX person: <http://www.w3.org/ns/person#>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+      CONSTRUCT {
+        ${sparqlEscapeUri(mandateeUri)} ${prop} ?end .
       }
-    }
-  `, graph);
-
-  await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
-    PREFIX person: <http://www.w3.org/ns/person#>
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-
-    CONSTRUCT {
-       ?person foaf:name ?name .
-    }
-    WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(mandateeUri)} mandaat:isBestuurlijkeAliasVan ?person .
-        ?person foaf:name ?name .
+      WHERE {
+        GRAPH ?g {
+          ${sparqlEscapeUri(mandateeUri)} ${prop} ?end .
+        }
+        VALUES ?g {
+          ${sparqlEscapeUri(kanselarijGraph)}
+          ${sparqlEscapeUri(publicGraph)}
+        }
       }
-    }
   `, graph);
+  }
 }
 
 async function copyDocumentsForProcedurestap(procedurestapUri, graph) {
