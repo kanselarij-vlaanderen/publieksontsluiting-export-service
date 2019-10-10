@@ -136,30 +136,58 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
     }
   `, graph);
 
-  const optionalMandateeProperties = ['mandaat:einde', 'mandaat:rangorde', 'foaf:name', 'foaf:nickname'];
-
-  for (let prop of optionalMandateeProperties) {
-    await copyToLocalGraph(`
+  await copyToLocalGraph(`
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
       PREFIX dct: <http://purl.org/dc/terms/>
       PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
       PREFIX person: <http://www.w3.org/ns/person#>
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
       CONSTRUCT {
-        ${sparqlEscapeUri(mandateeUri)} ${prop} ?o .
+        ${sparqlEscapeUri(mandateeUri)} ?p ?o .
       }
       WHERE {
         GRAPH ?g {
-          ${sparqlEscapeUri(mandateeUri)} ${prop} ?o .
+          ${sparqlEscapeUri(mandateeUri)} ?p ?o .
         }
         VALUES ?g {
           ${sparqlEscapeUri(kanselarijGraph)}
           ${sparqlEscapeUri(publicGraph)}
         }
+        VALUES ?p {
+          mandaat:einde
+          mandaat:rangorde
+          ext:nickName
+        }
       }
   `, graph);
-  }
+
+  await copyToLocalGraph(`
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+      PREFIX person: <http://www.w3.org/ns/person#>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+      CONSTRUCT {
+        ${sparqlEscapeUri(mandateeUri)} ?p ?o .
+      }
+      WHERE {
+        GRAPH ?g {
+          ${sparqlEscapeUri(mandateeUri)} mandaat:isBestuurlijkeAliasVan ?person .
+          ?person ?p ?o
+        }
+        VALUES ?g {
+          ${sparqlEscapeUri(kanselarijGraph)}
+          ${sparqlEscapeUri(publicGraph)}
+        }
+        VALUES ?p {
+          foaf:name
+        }
+      }
+  `, graph);
 }
 
 async function copyDocumentsForProcedurestap(procedurestapUri, graph) {
