@@ -119,7 +119,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
         foaf:familyName ?familyName .
     }
     WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+      GRAPH ?g {
         ${sparqlEscapeUri(mandateeUri)} a mandaat:Mandataris ;
           mu:uuid ?uuidMandatee ;
           dct:title ?title ;
@@ -128,6 +128,10 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
         ?person mu:uuid ?uuidPerson ;
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
+      }
+      VALUES {
+        ${sparqlEscapeUri(kanselarijGraph)}
+        ${sparqlEscapeUri(publicGraph)}
       }
     }
   `, graph);
