@@ -7,6 +7,7 @@ import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, get
 import {
   copySession,
   copyNewsItemForProcedurestap,
+  copyNewsItemForAgendapunt,
   copyMandateeAndPerson,
   copyDocumentsForProcedurestap,
   copyDocumentsForAgendapunt,
