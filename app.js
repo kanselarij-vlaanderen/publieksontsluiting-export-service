@@ -123,8 +123,13 @@ async function createExport(uuid) {
       const mededelingen = await getMededelingenOfSession(sessionUri);
       console.log(`Found ${mededelingen.length} mededelingen`);
       for (let mededeling of mededelingen) {
-        await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri, exportGraphMededelingen, "mededeling");
-        await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
+        if (mededeling.procedurestap) { // mededeling has a KB
+          await copyNewsItemForProcedurestap(mededeling.procedurestap, sessionUri,  exportGraphMededelingen, "mededeling");
+          await copyDocumentsForProcedurestap(mededeling.procedurestap, tmpGraph);
+        } else { // construct 'fake' nieuwsbrief info based on agendapunt title
+          await copyNewsItemForAgendapunt(mededeling.agendapunt, sessionUri,  exportGraphMededelingen);
+          await copyDocumentsForAgendapunt(mededeling.agendapunt, tmpGraph);
+        }
       }
       await calculatePriorityMededelingen(exportGraphMededelingen);
 

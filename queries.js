@@ -99,6 +99,40 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
   `, graph);
 }
 
+async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, category = "mededeling") {
+  return await copyToLocalGraph(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(agendapuntUri)} prov:generate ?newsUri .
+      ?newsUri a besluitvorming:NieuwsbriefInfo ;
+        mu:uuid ?mededelingUuid ;
+        dct:title ?title ;
+        ext:htmlInhoud ?content ;
+        ext:mededelingPrioriteit ?priority ;
+        ext:newsItemCategory ${sparqlEscapeString(category)} .
+      ${sparqlEscapeUri(sessionUri)} <http://mu.semte.ch/vocabularies/ext/publishedNieuwsbriefInfo> ?newsUri .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(agendapuntUri)} a besluit:Agendapunt ;
+          mu:uuid ?agendapuntUuid ;
+          dct:title ?content ;
+          ext:prioriteit ?priority .
+        OPTIONAL { ${sparqlEscapeUri(agendapuntUri)} dct:alternative ?shortTitle }
+        BIND(CONCAT("ap-", ?agendapuntUuid) as ?mededelingUuid)
+        BIND(CONCAT("http:///kanselarij.vo.data.gift/nieuwsbrief-infos/", ?mededelingUuid) as ?newsUri)
+        BIND(COALESCE(?shortTitle, ?content) as ?title)
+      }
+    }
+  `, graph);
+}
+
 async function copyMandateeAndPerson(mandateeUri, graph) {
   await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -415,11 +449,13 @@ async function getMededelingenOfSession(sessionUri) {
                   ext:prioriteit ?priority ;
                   ext:toonInKortBestek  "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
 
-     ?procedurestap a dbpedia:UnitOfWork ;
-        mu:uuid ?uuid ;
-        besluitvorming:isGeagendeerdVia ?agendapunt ;
-        prov:generated ?nieuwsbriefInfo .
-      ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo .
+      OPTIONAL {
+        ?procedurestap a dbpedia:UnitOfWork ;
+          mu:uuid ?uuid ;
+          besluitvorming:isGeagendeerdVia ?agendapunt ;
+          prov:generated ?nieuwsbriefInfo .
+        ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo .
+      }
     }
   }`));
 }
@@ -664,6 +700,7 @@ export {
   copyThemaCodes,
   copyDocumentTypes,
   copyNewsItemForProcedurestap,
+  copyNewsItemForAgendapunt,
   copyMandateeAndPerson,
   copyDocumentsForProcedurestap,
   copyDocumentsForAgendapunt,
