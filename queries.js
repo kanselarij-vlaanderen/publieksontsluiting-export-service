@@ -109,7 +109,7 @@ async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, categ
     PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
 
     CONSTRUCT {
-      ${sparqlEscapeUri(agendapuntUri)} prov:generate ?newsUri .
+      ${sparqlEscapeUri(agendapuntUri)} prov:generated ?newsUri .
       ?newsUri a besluitvorming:NieuwsbriefInfo ;
         mu:uuid ?mededelingUuid ;
         dct:title ?title ;
