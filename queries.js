@@ -146,6 +146,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
         mu:uuid ?uuidMandatee ;
         dct:title ?title ;
         mandaat:start ?start ;
+        mandaat:rangorde ?rank ;
         mandaat:isBestuurlijkeAliasVan ?person .
       ?person a person:Person ;
         mu:uuid ?uuidPerson ;
@@ -159,6 +160,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
           dct:title ?title ;
           mandaat:start ?start ;
           mandaat:isBestuurlijkeAliasVan ?person .
+        OPTIONAL { ${sparqlEscapeUri(mandateeUri)} mandaat:rangorde ?rank . }
         ?person mu:uuid ?uuidPerson ;
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
@@ -566,8 +568,8 @@ function sortMandateeGroups(mandateeGroups) {
   return mandateeGroups.sort(function (a, b) {
     for (var i = 0; i < Math.max(a[1].length, b[1].length); i++) {
       if (a[1][i] && b[1][i]) {
-        if (a[1][i].priority !== b[1][i].priority) {
-          return a[1][i].priority - b[1][i].priority;
+        if (a[1][i].rank !== b[1][i].rank) {
+          return a[1][i].rank - b[1][i].rank;
         } else {
           continue;
         }
@@ -599,7 +601,7 @@ async function calculatePriorityNewsItems(exportGraph) {
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX prov: <http://www.w3.org/ns/prov#>
 
-    SELECT ?newsItem ?number ?mandatee ?title
+    SELECT ?newsItem ?number ?mandatee ?title ?rank
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
          ?newsItem a besluitvorming:NieuwsbriefInfo .
@@ -609,7 +611,7 @@ async function calculatePriorityNewsItems(exportGraph) {
          ?agendaItem ext:prioriteit ?number .
          ?mandatee dct:title ?title .
          OPTIONAL {
-           ?mandatee mandaat:rangorde ?rangorde .
+           ?mandatee mandaat:rangorde ?rank .
         }
       }
     }
@@ -625,13 +627,13 @@ async function calculatePriorityNewsItems(exportGraph) {
   result.forEach((r) => {
     const key = r.newsItem;
     uniqueNewsItems[key] = uniqueNewsItems[key] || { number: parseInt(r.number), mandatees: [] };
-    if (!uniqueNewsItems[key].mandatees.some(m => r.mandatee === m.mandatee.uri)) { // If mandatee not in list yet
+    if (!uniqueNewsItems[key].mandatees.some(m => r.mandatee === m.uri)) { // If mandatee not in list yet
       const mandatee = {
         uri: r.mandatee,
         title: r.title
       };
-      if (r.rangorde) {
-        mandatee.priority = r.rangorde;
+      if (r.rank !== undefined) {
+        mandatee.rank = parseInt(r.rank);
       }
       // [ { uri, title, priority }, ... ]
       uniqueNewsItems[key].mandatees.push(mandatee);
@@ -656,13 +658,13 @@ async function calculatePriorityNewsItems(exportGraph) {
   console.log(`Found ${uniqueMandateeGroups.length} different groups of mandatees`);
   // [ { uri: news-1, groupKey, number, mandatees, ... } ]
 
-  let mandateePrioritiesAvailable = uniqueMandateeGroups.every((group) => group[1].every((m) => Number.isInteger(m.priorty)));
+  let mandateePrioritiesAvailable = uniqueMandateeGroups.every((group) => group[1].every((m) => Number.isInteger(m.rank)));
 
   // Sort mandatee-groups
   let sortedMandateeGroups;
   console.log(`Sorting mandatee groups by ${mandateePrioritiesAvailable ? 'mandatee priority' : 'lowest agendaitem number assigned to group'}`);
-  if (mandateePrioritiesAvailable) { // Based on mandatee priority
-    uniqueMandateeGroups.forEach((group) => group[1].sort((a, b) => a.priority - b.priority));
+  if (mandateePrioritiesAvailable) { // Based on mandatee rank
+    uniqueMandateeGroups.forEach((group) => group[1].sort((a, b) => a.rank - b.rank));
     sortedMandateeGroups = sortMandateeGroups(uniqueMandateeGroups);
   } else { // Based on the lowest agendaitem number assigned to group
     sortedMandateeGroups = uniqueMandateeGroups.sort(function(a, b) {
