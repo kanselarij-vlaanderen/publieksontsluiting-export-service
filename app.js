@@ -13,8 +13,9 @@ import {
   copyDocumentsForAgendapunt,
   copyFileTriples,
   getSession,
-  getProcedurestappenOfSession,
-  getMededelingenOfSession,
+  getLatestAgendaOfSession,
+  getProcedurestappenOfAgenda,
+  getMededelingenOfAgenda,
   getDocuments,
   getLatestVersion,
   insertDocumentAndLatestVersion,
@@ -97,9 +98,15 @@ async function createExport(uuid) {
     let file = `${exportFileBase}-news-items.ttl`;
 
     await copySession(sessionUri, exportGraphNewsItems);
+    const agendaUri = await getLatestAgendaOfSession(sessionUri);
+
+    if (agendaUri == null) {
+      console.log(`No agenda found for session ${sessionUri}. Nothing to export.`);
+      return;
+    }
 
     // News items dump
-    const procedurestappen = await getProcedurestappenOfSession(sessionUri);
+    const procedurestappen = await getProcedurestappenOfAgenda(agendaUri);
     console.log(`Found ${procedurestappen.length} news items`);
     for (let procedurestap of procedurestappen) {
       await copyNewsItemForProcedurestap(procedurestap.uri, sessionUri, exportGraphNewsItems);
@@ -121,7 +128,7 @@ async function createExport(uuid) {
     if (sessionDate > MEDEDELINGEN_SINCE) {
       file = `${exportFileBase}-mededelingen.ttl`;
 
-      const mededelingen = await getMededelingenOfSession(sessionUri);
+      const mededelingen = await getMededelingenOfAgenda(agendaUri);
       console.log(`Found ${mededelingen.length} mededelingen`);
       for (let mededeling of mededelingen) {
         if (mededeling.procedurestap) { // mededeling has a KB

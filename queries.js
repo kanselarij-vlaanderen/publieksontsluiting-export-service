@@ -403,8 +403,18 @@ async function getSession(uuid) {
   return sessions.length ? sessions[0] : null;
 }
 
+async function getLatestAgendaOfSession(sessionUri) {
+  const agendas = parseResult(await queryKaleidos(`
+     SELECT ?agenda WHERE {
+       ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} .
+          <http://mu.semte.ch/vocabularies/ext/aangemaaktOp> ?created .
+     } ORDER BY DESC(?created) LIMIT 1
+  `));
+  return agendas.length ? agendas[0] : null;
+}
 
-async function getProcedurestappenOfSession(sessionUri) {
+
+async function getProcedurestappenOfAgenda(agendaUri) {
   return parseResult(await queryKaleidos(`
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -415,9 +425,7 @@ async function getProcedurestappenOfSession(sessionUri) {
     SELECT ?uri ?mandatee
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
-        ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} .
-        ?agenda dct:hasPart ?agendapunt .
+        ${sparqlEscapeUri(agendaUri)} dct:hasPart ?agendapunt .
         ?agendapunt ext:wordtGetoondAlsMededeling "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
                     ext:prioriteit ?priorty .
         ?uri a dbpedia:UnitOfWork ;
@@ -431,7 +439,7 @@ async function getProcedurestappenOfSession(sessionUri) {
   `));
 }
 
-async function getMededelingenOfSession(sessionUri) {
+async function getMededelingenOfAgenda(agendaUri) {
   return parseResult(await queryKaleidos(`
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
   PREFIX dbpedia: <http://dbpedia.org/ontology/>
@@ -443,8 +451,7 @@ async function getMededelingenOfSession(sessionUri) {
   SELECT ?agendapunt ?priority ?procedurestap
   WHERE {
     GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-      ${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?agenda .
-      ?agenda dct:hasPart ?agendapunt .
+      ${sparqlEscapeUri(agendaUri)} dct:hasPart ?agendapunt .
       ?agendapunt ext:wordtGetoondAlsMededeling "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
                   ext:prioriteit ?priority ;
                   ext:toonInKortBestek  "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
@@ -706,8 +713,9 @@ export {
   copyDocumentsForAgendapunt,
   copyFileTriples,
   getSession,
-  getProcedurestappenOfSession,
-  getMededelingenOfSession,
+  getLatestAgendaOfSession,
+  getProcedurestappenOfAgenda,
+  getMededelingenOfAgenda,
   getDocuments,
   getLatestVersion,
   insertDocumentAndLatestVersion,
