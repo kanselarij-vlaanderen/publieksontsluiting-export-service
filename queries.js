@@ -146,6 +146,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
         mu:uuid ?uuidMandatee ;
         dct:title ?title ;
         mandaat:start ?start ;
+        mandaat:rangorde ?rank ;
         mandaat:isBestuurlijkeAliasVan ?person .
       ?person a person:Person ;
         mu:uuid ?uuidPerson ;
@@ -159,6 +160,7 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
           dct:title ?title ;
           mandaat:start ?start ;
           mandaat:isBestuurlijkeAliasVan ?person .
+        OPTIONAL { ${sparqlEscapeUri(mandateeUri)} mandaat:rangorde ?rank . }
         ?person mu:uuid ?uuidPerson ;
           foaf:firstName ?firstName ;
           foaf:familyName ?familyName .
@@ -564,6 +566,31 @@ async function linkNewsItemsToDocumentVersion(graphsWithNewsItems, tmpGraph, doc
   `);
 }
 
+/* Takes an Array of [key, [mandatee 'a' Object, mandatee 'b' Object, ...]]-form array.
+   Each array of mandatee-objects represents a group of mandatees that submitted an agendaitem.
+   Assumes the mandatee array to already be sorted by priority.
+   Returns an Array of [key, [mandatee 'a' Object, mandatee 'b' Object, ...]]-form arrays, which are sorted by protocol order, based on mandatee priorities
+*/
+function sortMandateeGroups(mandateeGroups) {
+  return mandateeGroups.sort(function (a, b) {
+    for (var i = 0; i < Math.max(a[1].length, b[1].length); i++) {
+      if (a[1][i] && b[1][i]) {
+        if (a[1][i].rank !== b[1][i].rank) {
+          return a[1][i].rank - b[1][i].rank;
+        } else {
+          continue;
+        }
+      } else if (a[1][i]) {
+        return 1;
+      } else if (b[1][i]) {
+        return -1;
+      } else {
+        return 0;
+      }
+    }
+  });
+}
+
 /* Agendaitems should be grouped and ordered according to the priority of the assigned mandatee.
    Since we don't have correct historical priority data for ministers,
    we will group agendaitems per minister and let the agendaitem with the lowest
@@ -581,7 +608,7 @@ async function calculatePriorityNewsItems(exportGraph) {
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX prov: <http://www.w3.org/ns/prov#>
 
-    SELECT ?newsItem ?number ?mandatee ?title
+    SELECT ?newsItem ?number ?mandatee ?title ?rank
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
          ?newsItem a besluitvorming:NieuwsbriefInfo .
@@ -590,6 +617,9 @@ async function calculatePriorityNewsItems(exportGraph) {
              besluitvorming:isGeagendeerdVia ?agendaItem .
          ?agendaItem ext:prioriteit ?number .
          ?mandatee dct:title ?title .
+         OPTIONAL {
+           ?mandatee mandaat:rangorde ?rank .
+        }
       }
     }
   `));
@@ -601,52 +631,66 @@ async function calculatePriorityNewsItems(exportGraph) {
 
   // Group results per newsItem
   const uniqueNewsItems = {};
-  result.forEach( (r) => {
+  result.forEach((r) => {
     const key = r.newsItem;
     uniqueNewsItems[key] = uniqueNewsItems[key] || { number: parseInt(r.number), mandatees: [] };
-    if (!uniqueNewsItems[key].mandatees.includes(r.title))
-      uniqueNewsItems[key].mandatees.push(r.title);
+    if (!uniqueNewsItems[key].mandatees.some(m => r.mandatee === m.uri)) { // If mandatee not in list yet
+      const mandatee = {
+        uri: r.mandatee,
+        title: r.title
+      };
+      if (r.rank !== undefined) {
+        mandatee.rank = parseInt(r.rank);
+      }
+      // [ { uri, title, priority }, ... ]
+      uniqueNewsItems[key].mandatees.push(mandatee);
+    }
   });
   console.log(`Found ${Object.keys(uniqueNewsItems).length} news items`);
 
   // { <news-1>: { number, mandatees }, <news-2>: { number, mandatees }, ... }
 
   // Create 'unique' key for group of mandatees per item
-  const groupPriorities = {};
+  const uniqueMandateeGroups = [];
   const newsItems = [];
   for (let uri in uniqueNewsItems) {
     const item = uniqueNewsItems[uri];
-    item.mandatees.sort();
-    const groupKey = item.mandatees.join();
-    groupPriorities[groupKey] = 0;
+    item.mandatees.sort((a, b) => a.uri - b.uri);
+    const groupKey = item.mandatees.map((m) => m.uri).join();
+    if (!uniqueMandateeGroups.some((group) => groupKey === group[0])) {
+      uniqueMandateeGroups.push([groupKey, item.mandatees]);
+    }
     newsItems.push({ uri, groupKey, number: item.number, mandatees: item.mandatees });
   }
-  console.log(`Found ${Object.keys(groupPriorities).length} different groups of mandatees`);
-
+  console.log(`Found ${uniqueMandateeGroups.length} different groups of mandatees`);
   // [ { uri: news-1, groupKey, number, mandatees, ... } ]
 
-  // Determine priority of each group of mandatees based on the lowest agendaitem number assigned to that group
-  for (let groupKey in groupPriorities) {
-    groupPriorities[groupKey] = Math.min(...newsItems.filter(i => i.groupKey == groupKey).map(i => i.number));
-  }
-  console.log(`Determined groups of mandatees priorities: ${JSON.stringify(groupPriorities)}`);
+  let mandateePrioritiesAvailable = uniqueMandateeGroups.every((group) => group[1].every((m) => Number.isInteger(m.rank)));
 
-  // Order group of mandatees, lowest priority first (= most important)
-  const orderedGroupKeys = [];
-  for (let groupKey in groupPriorities) {
-    orderedGroupKeys.push( { key: groupKey, priority: groupPriorities[groupKey] } );
+  // Sort mandatee-groups
+  let sortedMandateeGroups;
+  console.log(`Sorting mandatee groups by ${mandateePrioritiesAvailable ? 'mandatee priority' : 'lowest agendaitem number assigned to group'}`);
+  if (mandateePrioritiesAvailable) { // Based on mandatee rank
+    uniqueMandateeGroups.forEach((group) => group[1].sort((a, b) => a.rank - b.rank));
+    sortedMandateeGroups = sortMandateeGroups(uniqueMandateeGroups);
+  } else { // Based on the lowest agendaitem number assigned to group
+    sortedMandateeGroups = uniqueMandateeGroups.sort(function(a, b) {
+      const lowestNumByGroupkey = (key) => Math.min(...newsItems.filter(i => i.groupKey === key).map(i => i.number));
+      let na = lowestNumByGroupkey(a.groupKey);
+      let nb = lowestNumByGroupkey(b.groupKey);
+      return na - nb;
+    });
   }
-  orderedGroupKeys.sort( (a, b) => (a.priority > b.priority ? 1 : -1 ));
-  console.log(`Sorted groups of mandatees priorities: ${JSON.stringify(orderedGroupKeys)}`);
+  console.log(`Sorted groups of mandatees: ${JSON.stringify(sortedMandateeGroups)}`);
 
   // Set overall priority per newsItem based on groupPriority and agendaItem number
-  const maxItemNumber = Math.max(...newsItems.map(i => i.number));
-  for (let i=0; i < orderedGroupKeys.length; i++) {
-    const groupKey = orderedGroupKeys[i].key;
-    const baseGroupPriority = i * maxItemNumber;  // make sure priorities between groups don't overlap
-    console.log(`Base priority for group ${i} set to ${baseGroupPriority}`);
-    newsItems.filter(item => item.groupKey == groupKey).forEach(item => item.priority = baseGroupPriority + item.number);
-  }
+  let itemPriority = 0;
+  sortedMandateeGroups.forEach(function (group, index) {
+    const groupKey = group[0];
+    newsItems.filter(item => item.groupKey === groupKey)
+      .sort((itemA, itemB) => itemA.number - itemB.number)
+      .forEach((item) => item.priority = itemPriority++);
+  });
 
   // Persist overall priority on newsItem in store
   const triples = newsItems.map( (item) => `<${item.uri}> ext:prioriteit ${sparqlEscapeInt(item.priority)} . ` );
