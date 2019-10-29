@@ -7,7 +7,7 @@ const publicGraph = "http://mu.semte.ch/graphs/public";
 const publicAccessLevel = 'http://kanselarij.vo.data.gift/id/concept/toegangs-niveaus/6ca49d86-d40f-46c9-bde3-a322aa7e5c8e';
 
 async function copySession(uri, graph) {
-  return await copyToLocalGraph(`
+  await copyToLocalGraph(`
     PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 
@@ -21,6 +21,24 @@ async function copySession(uri, graph) {
          ${sparqlEscapeUri(uri)} a besluit:Zitting ;
           mu:uuid ?uuid ;
           besluit:geplandeStart ?geplandeStart .
+      }
+    }
+  `, graph);
+
+  // Value of ext:aard is currently a string instead of a URI in Kaleidos. Valvas expects a URI.
+  // Workaround with the BIND(IRI(...)) construction.
+  await copyToLocalGraph(`
+    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(uri)} ext:aard ?type .
+   }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+         ${sparqlEscapeUri(uri)} ext:aard ?typeStr .
+         BIND(IRI(STR(?typeStr)) as ?type)
       }
     }
   `, graph);
