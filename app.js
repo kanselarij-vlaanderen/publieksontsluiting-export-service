@@ -98,7 +98,8 @@ async function createExport(uuid) {
     let file = `${exportFileBase}-news-items.ttl`;
 
     await copySession(sessionUri, exportGraphNewsItems);
-    const agendaUri = await getLatestAgendaOfSession(sessionUri);
+    const agenda = await getLatestAgendaOfSession(sessionUri);
+    const agendaUri = agenda.uri;
 
     if (agendaUri == null) {
       console.log(`No agenda found for session ${sessionUri}. Nothing to export.`);

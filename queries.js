@@ -407,8 +407,8 @@ async function getSession(uuid) {
 
 async function getLatestAgendaOfSession(sessionUri) {
   const agendas = parseResult(await queryKaleidos(`
-     SELECT ?agenda WHERE {
-       ?agenda <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} .
+     SELECT ?uri WHERE {
+       ?uri <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} ;
           <http://mu.semte.ch/vocabularies/ext/aangemaaktOp> ?created .
      } ORDER BY DESC(?created) LIMIT 1
   `));
