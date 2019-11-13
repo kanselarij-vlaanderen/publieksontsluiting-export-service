@@ -140,8 +140,8 @@ async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, categ
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
         ${sparqlEscapeUri(agendapuntUri)} a besluit:Agendapunt ;
           mu:uuid ?agendapuntUuid ;
-          dct:title ?content ;
           ext:prioriteit ?priority .
+        OPTIONAL { ${sparqlEscapeUri(agendapuntUri)} dct:title ?content }
         OPTIONAL { ${sparqlEscapeUri(agendapuntUri)} dct:alternative ?shortTitle }
         BIND(CONCAT("ap-", ?agendapuntUuid) as ?mededelingUuid)
         BIND(IRI(CONCAT("http:///kanselarij.vo.data.gift/nieuwsbrief-infos/", ?mededelingUuid)) as ?newsUri)
