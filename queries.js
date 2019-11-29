@@ -75,8 +75,9 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
         ?agendapunt ext:prioriteit ?priority .
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
           mu:uuid ?uuid ;
-          dct:title ?title ;
-          ext:htmlInhoud ?htmlInhoud .
+          dct:title ?title .
+
+        OPTIONAL { ?newsItem ext:htmlInhoud ?htmlInhoud }
       }
     }
   `, graph);
