@@ -118,7 +118,7 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
 }
 
 async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, category = "mededeling") {
-  return await copyToLocalGraph(`
+  await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -131,7 +131,7 @@ async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, categ
       ?newsUri a besluitvorming:NieuwsbriefInfo ;
         mu:uuid ?mededelingUuid ;
         dct:title ?title ;
-        ext:htmlInhoud ?content ;
+        ext:htmlInhoud ?htmlInhoud ;
         ext:mededelingPrioriteit ?priority ;
         ext:newsItemCategory ${sparqlEscapeString(category)} .
       ${sparqlEscapeUri(sessionUri)} <http://mu.semte.ch/vocabularies/ext/publishedNieuwsbriefInfo> ?newsUri .
@@ -146,6 +146,7 @@ async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, categ
         BIND(CONCAT("ap-", ?agendapuntUuid) as ?mededelingUuid)
         BIND(IRI(CONCAT("http:///kanselarij.vo.data.gift/nieuwsbrief-infos/", ?mededelingUuid)) as ?newsUri)
         BIND(COALESCE(?shortTitle, ?content) as ?title)
+        BIND(COALESCE(?content, '') as ?htmlInhoud)
       }
     }
   `, graph);
