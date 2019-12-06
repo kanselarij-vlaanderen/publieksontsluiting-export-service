@@ -621,6 +621,10 @@ function sortMandateeGroups(mandateeGroups) {
    Final order of the agendaItems will be: 3 - 5 - 4
 */
 async function calculatePriorityNewsItems(exportGraph) {
+  let triples = [];
+
+  // Add priority for news items with mandatee(s)
+
   const result = parseResult(await query(`
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -628,7 +632,7 @@ async function calculatePriorityNewsItems(exportGraph) {
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX prov: <http://www.w3.org/ns/prov#>
 
-    SELECT ?newsItem ?number ?mandatee ?title ?rank
+    SELECT DISTINCT ?newsItem ?number ?mandatee ?title ?rank
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
          ?newsItem a besluitvorming:NieuwsbriefInfo .
@@ -644,76 +648,101 @@ async function calculatePriorityNewsItems(exportGraph) {
     }
   `));
 
-  if (result.length == 0)
-    return; // No news items. No priorities to calculate.
+  if (result.length > 0) {
 
-  // [ { newsItem, number, mandatee }, ... ]
+    // [ { newsItem, number, mandatee }, ... ]
 
-  // Group results per newsItem
-  const uniqueNewsItems = {};
-  result.forEach((r) => {
-    const key = r.newsItem;
-    uniqueNewsItems[key] = uniqueNewsItems[key] || { number: parseInt(r.number), mandatees: [] };
-    if (!uniqueNewsItems[key].mandatees.some(m => r.mandatee === m.uri)) { // If mandatee not in list yet
-      const mandatee = {
-        uri: r.mandatee,
-        title: r.title
-      };
-      if (r.rank !== undefined) {
-        mandatee.rank = parseInt(r.rank);
+    // Group results per newsItem
+    const uniqueNewsItems = {};
+    result.forEach((r) => {
+      const key = r.newsItem;
+      uniqueNewsItems[key] = uniqueNewsItems[key] || { number: parseInt(r.number), mandatees: [] };
+      if (!uniqueNewsItems[key].mandatees.some(m => r.mandatee === m.uri)) { // If mandatee not in list yet
+        const mandatee = {
+          uri: r.mandatee,
+          title: r.title
+        };
+        if (r.rank !== undefined) {
+          mandatee.rank = parseInt(r.rank);
+        }
+        // [ { uri, title, priority }, ... ]
+        uniqueNewsItems[key].mandatees.push(mandatee);
       }
-      // [ { uri, title, priority }, ... ]
-      uniqueNewsItems[key].mandatees.push(mandatee);
-    }
-  });
-  console.log(`Found ${Object.keys(uniqueNewsItems).length} news items`);
-
-  // { <news-1>: { number, mandatees }, <news-2>: { number, mandatees }, ... }
-
-  // Create 'unique' key for group of mandatees per item
-  const uniqueMandateeGroups = [];
-  const newsItems = [];
-  for (let uri in uniqueNewsItems) {
-    const item = uniqueNewsItems[uri];
-    item.mandatees.sort((a, b) => a.uri - b.uri);
-    const groupKey = item.mandatees.map((m) => m.uri).join();
-    if (!uniqueMandateeGroups.some((group) => groupKey === group[0])) {
-      uniqueMandateeGroups.push([groupKey, item.mandatees]);
-    }
-    newsItems.push({ uri, groupKey, number: item.number, mandatees: item.mandatees });
-  }
-  console.log(`Found ${uniqueMandateeGroups.length} different groups of mandatees`);
-  // [ { uri: news-1, groupKey, number, mandatees, ... } ]
-
-  let mandateePrioritiesAvailable = uniqueMandateeGroups.every((group) => group[1].every((m) => Number.isInteger(m.rank)));
-
-  // Sort mandatee-groups
-  let sortedMandateeGroups;
-  console.log(`Sorting mandatee groups by ${mandateePrioritiesAvailable ? 'mandatee priority' : 'lowest agendaitem number assigned to group'}`);
-  if (mandateePrioritiesAvailable) { // Based on mandatee rank
-    uniqueMandateeGroups.forEach((group) => group[1].sort((a, b) => a.rank - b.rank));
-    sortedMandateeGroups = sortMandateeGroups(uniqueMandateeGroups);
-  } else { // Based on the lowest agendaitem number assigned to group
-    sortedMandateeGroups = uniqueMandateeGroups.sort(function(a, b) {
-      const lowestNumByGroupkey = (key) => Math.min(...newsItems.filter(i => i.groupKey === key).map(i => i.number));
-      let na = lowestNumByGroupkey(a.groupKey);
-      let nb = lowestNumByGroupkey(b.groupKey);
-      return na - nb;
     });
+    console.log(`Found ${Object.keys(uniqueNewsItems).length} news items`);
+
+    // { <news-1>: { number, mandatees }, <news-2>: { number, mandatees }, ... }
+
+    // Create 'unique' key for group of mandatees per item
+    const uniqueMandateeGroups = [];
+    const newsItems = [];
+    for (let uri in uniqueNewsItems) {
+      const item = uniqueNewsItems[uri];
+      item.mandatees.sort((a, b) => a.uri - b.uri);
+      const groupKey = item.mandatees.map((m) => m.uri).join();
+      if (!uniqueMandateeGroups.some((group) => groupKey === group[0])) {
+        uniqueMandateeGroups.push([groupKey, item.mandatees]);
+      }
+      newsItems.push({ uri, groupKey, number: item.number, mandatees: item.mandatees });
+    }
+    console.log(`Found ${uniqueMandateeGroups.length} different groups of mandatees`);
+    // [ { uri: news-1, groupKey, number, mandatees, ... } ]
+
+    let mandateePrioritiesAvailable = uniqueMandateeGroups.every((group) => group[1].every((m) => Number.isInteger(m.rank)));
+
+    // Sort mandatee-groups
+    let sortedMandateeGroups;
+    console.log(`Sorting mandatee groups by ${mandateePrioritiesAvailable ? 'mandatee priority' : 'lowest agendaitem number assigned to group'}`);
+    if (mandateePrioritiesAvailable) { // Based on mandatee rank
+      uniqueMandateeGroups.forEach((group) => group[1].sort((a, b) => a.rank - b.rank));
+      sortedMandateeGroups = sortMandateeGroups(uniqueMandateeGroups);
+    } else { // Based on the lowest agendaitem number assigned to group
+      sortedMandateeGroups = uniqueMandateeGroups.sort(function(a, b) {
+        const lowestNumByGroupkey = (key) => Math.min(...newsItems.filter(i => i.groupKey === key).map(i => i.number));
+        let na = lowestNumByGroupkey(a.groupKey);
+        let nb = lowestNumByGroupkey(b.groupKey);
+        return na - nb;
+      });
+    }
+    console.log(`Sorted groups of mandatees: ${JSON.stringify(sortedMandateeGroups)}`);
+
+    // Set overall priority per newsItem based on groupPriority and agendaItem number
+    let itemPriority = 0;
+    sortedMandateeGroups.forEach(function (group, index) {
+      const groupKey = group[0];
+      newsItems.filter(item => item.groupKey === groupKey)
+        .sort((itemA, itemB) => itemA.number - itemB.number)
+        .forEach((item) => item.priority = itemPriority++);
+    });
+
+    // Persist overall priority on newsItem in store
+    triples.push(...newsItems.map( (item) => `<${item.uri}> ext:prioriteit ${sparqlEscapeInt(item.priority)} . ` ));
   }
-  console.log(`Sorted groups of mandatees: ${JSON.stringify(sortedMandateeGroups)}`);
 
-  // Set overall priority per newsItem based on groupPriority and agendaItem number
-  let itemPriority = 0;
-  sortedMandateeGroups.forEach(function (group, index) {
-    const groupKey = group[0];
-    newsItems.filter(item => item.groupKey === groupKey)
-      .sort((itemA, itemB) => itemA.number - itemB.number)
-      .forEach((item) => item.priority = itemPriority++);
-  });
+  // Add priority for news items without mandatee
 
-  // Persist overall priority on newsItem in store
-  const triples = newsItems.map( (item) => `<${item.uri}> ext:prioriteit ${sparqlEscapeInt(item.priority)} . ` );
+  const basePriority = 1000; // make sure they have a lower priority than the news items with a mandatee
+
+  const resultNoMandatee = parseResult(await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    SELECT DISTINCT ?newsItem ?number
+    WHERE {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+         ?newsItem a besluitvorming:NieuwsbriefInfo .
+         ?procedurestap prov:generated ?newsItem ;
+             besluitvorming:isGeagendeerdVia ?agendaItem .
+         FILTER NOT EXISTS { ?procedurestap besluitvorming:heeftBevoegde ?mandatee . }
+         ?agendaItem ext:prioriteit ?number .
+      }
+    }
+  `));
+
+  triples.push(...resultNoMandatee.map( (r) => `<${r.newsItem}> ext:prioriteit ${sparqlEscapeInt(basePriority + parseInt(r.number))} . ` ));
 
   await update(`
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
