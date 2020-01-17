@@ -260,30 +260,30 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     CONSTRUCT {
-      ${sparqlEscapeUri(resourceUri)} ext:bevatDocumentversie ?versie .
-      ?versie a ext:DocumentVersie ;
-        mu:uuid ?uuidDocumentVersie ;
-        ext:versieNummer ?versieNummer ;
+      ${sparqlEscapeUri(resourceUri)} ext:bevatDocumentversie ?document .
+      ?document a dossier:Stuk ;
+        mu:uuid ?uuidDocument ;
+        dct:title ?nameDocument ;
         ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
         ext:file ?file .
-      ?document a foaf:Document ;
-        besluitvorming:heeftVersie ?versie ;
-        mu:uuid ?uuidDocument .
+      ?container a dossier:Serie ;
+        dossier:collectie.bestaatUit ?document ;
+        mu:uuid ?uuidContainer .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
-        ?versie a ext:DocumentVersie ;
-          mu:uuid ?uuidDocumentVersie ;
-          ext:versieNummer ?versieNummer ;
+        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?document .
+        ?document a dossier:Stuk ;
+          mu:uuid ?uuidDocument ;
+          dct:title ?nameDocument ;
           ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
           ext:file ?file .
-        ?document a foaf:Document ;
-          besluitvorming:heeftVersie ?versie ;
-          mu:uuid ?uuidDocument .
+        ?container a dossier:Serie ;
+          dossier:collectie.bestaatUit ?document ;
+          mu:uuid ?uuidContainer .
       }
     }
   `, graph);
@@ -294,34 +294,16 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     CONSTRUCT {
-      ?document ext:documentType ?documentType .
+      ?container ext:documentType ?documentType .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
-        ?document besluitvorming:heeftVersie ?versie ;
+        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?document .
+        ?container dossier:collectie.bestaatUit ?document ;
           ext:documentType ?documentType .
-      }
-    }
-  `, graph);
-
-  await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-
-    CONSTRUCT {
-      ?document dct:title ?title .
-    }
-    WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(resourceUri)} ${documentVersiePredicate} ?versie .
-        ?document besluitvorming:heeftVersie ?versie ;
-          dct:title ?title .
       }
     }
   `, graph);
