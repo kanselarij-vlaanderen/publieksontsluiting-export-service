@@ -261,6 +261,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
+    PREFIX pav: <http://purl.org/pav/>
 
     CONSTRUCT {
       ${sparqlEscapeUri(resourceUri)} ext:bevatDocumentversie ?document .
@@ -269,6 +270,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
         dct:title ?nameDocument ;
         ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
         ext:file ?file .
+      ?document pav:previousVersion ?previousVersion .
       ?container a dossier:Serie ;
         dossier:collectie.bestaatUit ?document ;
         mu:uuid ?uuidContainer .
@@ -281,6 +283,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
           dct:title ?nameDocument ;
           ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
           ext:file ?file .
+        OPTIONAL { ?document pav:previousVersion ?previousVersion }
         ?container a dossier:Serie ;
           dossier:collectie.bestaatUit ?document ;
           mu:uuid ?uuidContainer .
@@ -472,14 +475,14 @@ async function getMededelingenOfAgenda(agendaUri) {
   }`));
 }
 
-async function getDocuments(tmpGraph) {
+async function getDocumentContainers(tmpGraph) {
   return parseResult(await query(`
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     SELECT ?uri
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-        ?uri a foaf:Document .
+        ?uri a dossier:Serie .
       }
     }
   `));
@@ -491,52 +494,53 @@ async function getLatestVersion(tmpGraph, documentUri) {
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
+    PREFIX pav: <http://purl.org/pav/>
 
     SELECT ?uri
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-        ${sparqlEscapeUri(documentUri)} a foaf:Document ;
-          besluitvorming:heeftVersie ?uri .
-        ?uri a ext:DocumentVersie ;
-          ext:versieNummer ?versieNummer .
+        ${sparqlEscapeUri(documentUri)} a dossier:Serie ;
+          dossier:collectie.bestaatUit ?uri .
+        ?uri a dossier:Stuk .
+        FILTER NOT EXISTS { [] pav:previousVersion ?uri }
       }
     }
-    ORDER BY DESC(?versieNummer) LIMIT 1
+    LIMIT 1
   `));
 
   return versions.length ? versions[0] : null;
 }
 
-async function insertDocumentAndLatestVersion(documentUri, versionUri, tmpGraph, exportGraph) {
+async function insertDocumentAndLatestVersion(containerUri, versionUri, tmpGraph, exportGraph) {
   return await query(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     INSERT {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ${sparqlEscapeUri(documentUri)} a foaf:Document ;
-          besluitvorming:heeftVersie ${sparqlEscapeUri(versionUri)} ;
-          mu:uuid ?uuidDocument ;
-          dct:title ?title ;
+        ${sparqlEscapeUri(containerUri)} a dossier:Serie ;
+          dossier:collectie.bestaatUit ${sparqlEscapeUri(versionUri)} ;
+          mu:uuid ?uuidContainer ;
           ext:documentType ?documentType .
-        ${sparqlEscapeUri(versionUri)} a ext:DocumentVersie ;
+        ${sparqlEscapeUri(versionUri)} a dossier:Stuk ;
           mu:uuid ?uuidDocumentVersie ;
-          ext:versieNummer ?versieNummer ;
+          dct:title ?name ;
           ext:file ?file .
       }
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-        ${sparqlEscapeUri(documentUri)} a foaf:Document ;
-          besluitvorming:heeftVersie ${sparqlEscapeUri(versionUri)} ;
-          mu:uuid ?uuidDocument .
-        OPTIONAL { ${sparqlEscapeUri(documentUri)} dct:title ?title . }
-        OPTIONAL { ${sparqlEscapeUri(documentUri)} ext:documentType ?documentType . }
-        ${sparqlEscapeUri(versionUri)} a ext:DocumentVersie ;
+        ${sparqlEscapeUri(containerUri)} a dossier:Serie ;
+          dossier:collectie.bestaatUit ${sparqlEscapeUri(versionUri)} ;
+          mu:uuid ?uuidContainer .
+        OPTIONAL { ${sparqlEscapeUri(containerUri)} ext:documentType ?documentType . }
+        ${sparqlEscapeUri(versionUri)} a dossier:Stuk ;
           mu:uuid ?uuidDocumentVersie ;
-          ext:versieNummer ?versieNummer ;
+          dct:title ?name ;
           ext:file ?file .
       }
     }
@@ -792,7 +796,7 @@ export {
   getLatestAgendaOfSession,
   getProcedurestappenOfAgenda,
   getMededelingenOfAgenda,
-  getDocuments,
+  getDocumentContainers,
   getLatestVersion,
   insertDocumentAndLatestVersion,
   linkNewsItemsToDocumentVersion,

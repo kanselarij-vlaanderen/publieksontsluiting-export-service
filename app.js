@@ -16,7 +16,7 @@ import {
   getLatestAgendaOfSession,
   getProcedurestappenOfAgenda,
   getMededelingenOfAgenda,
-  getDocuments,
+  getDocumentContainers,
   getLatestVersion,
   insertDocumentAndLatestVersion,
   linkNewsItemsToDocumentVersion,
@@ -154,7 +154,7 @@ async function createExport(uuid) {
        exportGraphDocuments = `http://mu.semte.ch/graphs/export/${timestamp}-documents`;
       file = `${exportFileBase}-documents.ttl`;
 
-      const documents = await getDocuments(tmpGraph);
+      const documents = await getDocumentContainers(tmpGraph);
 
       for (let document of documents) {
         const version = await getLatestVersion(tmpGraph, document.uri);
