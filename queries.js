@@ -316,6 +316,7 @@ async function copyFileTriples(documentVersionUri, graph) {
     PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
     PREFIX nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
+    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     CONSTRUCT {
       ${sparqlEscapeUri(documentVersionUri)} ext:file ?uploadFile .
@@ -333,7 +334,7 @@ async function copyFileTriples(documentVersionUri, graph) {
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(documentVersionUri)} a ext:DocumentVersie ;
+        ${sparqlEscapeUri(documentVersionUri)} a dossier:Stuk ;
           ext:file ?uploadFile .
         ?uploadFile a nfo:FileDataObject ;
           mu:uuid ?uuidUploadFile ;
