@@ -319,7 +319,6 @@ async function copyFileTriples(documentVersionUri, graph) {
     PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
     PREFIX nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>
     PREFIX dbpedia: <http://dbpedia.org/ontology/>
-    PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
 
     CONSTRUCT {
       ${sparqlEscapeUri(documentVersionUri)} ext:file ?uploadFile .
@@ -337,7 +336,7 @@ async function copyFileTriples(documentVersionUri, graph) {
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(documentVersionUri)} a dossier:Stuk ;
+        ${sparqlEscapeUri(documentVersionUri)} a ext:DocumentVersie ;
           ext:file ?uploadFile .
         ?uploadFile a nfo:FileDataObject ;
           mu:uuid ?uuidUploadFile ;
@@ -513,6 +512,10 @@ async function getLatestVersion(tmpGraph, documentUri) {
 }
 
 async function insertDocumentAndLatestVersion(containerUri, versionUri, tmpGraph, exportGraph) {
+  /*
+   * Rewrites new Kaleidos model for documents to original Valvas documents model.
+   * Once the Kaleidos model is consistent for new as well as legacy data, Valvas can start using the new model as well.
+   */
   return await query(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -522,13 +525,14 @@ async function insertDocumentAndLatestVersion(containerUri, versionUri, tmpGraph
 
     INSERT {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-        ${sparqlEscapeUri(containerUri)} a dossier:Serie ;
-          dossier:collectie.bestaatUit ${sparqlEscapeUri(versionUri)} ;
+        ${sparqlEscapeUri(containerUri)} a foaf:Document ;
+          besluitvorming:heeftVersie ${sparqlEscapeUri(versionUri)} ;
           mu:uuid ?uuidContainer ;
-          ext:documentType ?documentType .
-        ${sparqlEscapeUri(versionUri)} a dossier:Stuk ;
-          mu:uuid ?uuidDocumentVersie ;
           dct:title ?name ;
+          ext:documentType ?documentType .
+        ${sparqlEscapeUri(versionUri)} a ext:DocumentVersie ;
+          mu:uuid ?uuidDocumentVersie ;
+          ext:versieNummer 1 ;
           ext:file ?file .
       }
     }

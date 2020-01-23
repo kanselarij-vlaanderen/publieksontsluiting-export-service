@@ -160,7 +160,7 @@ async function createExport(uuid) {
         const version = await getLatestVersion(tmpGraph, document.uri);
         if (version) {
           document.version = version.uri;
-          await insertDocumentAndLatestVersion(document.uri, version.uri, tmpGraph, exportGraphDocuments);
+          await insertDocumentAndLatestVersion(document.uri, version.uri, tmpGraph, exportGraphDocuments); // Rewrites to old document model
         }
       }
 
