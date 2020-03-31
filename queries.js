@@ -736,7 +736,8 @@ async function calculatePriorityNewsItems(exportGraph) {
 
   triples.push(...resultNoMandatee.map( (r) => `<${r.newsItem}> ext:prioriteit ${sparqlEscapeInt(basePriority + parseInt(r.number))} . ` ));
 
-  await update(`
+  if (triples.length) {
+    await update(`
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     INSERT DATA {
@@ -744,7 +745,8 @@ async function calculatePriorityNewsItems(exportGraph) {
         ${triples.join('\n')}
       }
     }
-  `);
+   `);
+  }
 }
 
 /*
