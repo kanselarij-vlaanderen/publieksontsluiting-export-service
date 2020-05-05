@@ -344,17 +344,20 @@ async function copyThemaCodes(graph) {
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
 
     CONSTRUCT {
       ?s a ext:ThemaCode ;
         mu:uuid ?uuid ;
-        skos:prefLabel ?label .
+        skos:prefLabel ?label ;
+        owl:deprecated ?deprecated .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(publicGraph)} {
         ?s a ext:ThemaCode ;
           mu:uuid ?uuid ;
           skos:prefLabel ?label .
+        OPTIONAL { ?s owl:deprecated ?deprecated . }
       }
     }
   `, graph);
