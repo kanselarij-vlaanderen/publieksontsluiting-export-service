@@ -3,6 +3,7 @@ import uniq from 'lodash.uniq';
 import { writeToFile } from './lib/graph-helpers';
 import { queryKaleidos } from './lib/kaleidos';
 import { copyToLocalGraph } from './lib/query-helpers';
+import { createTaskToDelta } from './lib/task-helpers'
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
   copySession,
@@ -94,10 +95,18 @@ async function createExport(uuid) {
     await updateJob(uuid, STARTED);
     const sessionUri = job.zitting;
 
-    const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
-    let file = `${exportFileBase}-news-items.ttl`;
+    const files = []
+    const exportGraphSessionInfo = `http://mu.semte.ch/graphs/export/${timestamp}-session-info`;
+    let file = `${exportFileBase}-session-info.ttl`;
 
-    await copySession(sessionUri, exportGraphNewsItems);
+    await copySession(sessionUri, exportGraphSessionInfo);
+
+    await writeToFile(exportGraphSessionInfo, file);
+    files.push(file.split('/').pop())
+
+    const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
+    file = `${exportFileBase}-news-items.ttl`;
+
     const agenda = await getLatestAgendaOfSession(sessionUri);
     const agendaUri = agenda.uri;
 
@@ -121,6 +130,7 @@ async function createExport(uuid) {
     await calculatePriorityNewsItems(exportGraphNewsItems);
 
     await writeToFile(exportGraphNewsItems, file);
+    files.push(file.split('/').pop())
 
 
     // Mededelingen dump
@@ -143,6 +153,7 @@ async function createExport(uuid) {
       await calculatePriorityMededelingen(exportGraphMededelingen);
 
       await writeToFile(exportGraphMededelingen, file);
+      files.push(file.split('/').pop())
     } else {
       console.log(`Public export of mededelingen didn't exist yet on ${sessionDate}. Mededelingen will be exported`);
     }
@@ -173,12 +184,14 @@ async function createExport(uuid) {
       }
 
       await writeToFile(exportGraphDocuments, file);
+      files.push(file.split('/').pop())
     } else {
       console.log(`Public export of documents didn't exist yet on ${sessionDate}. Documents will be exported`);
     }
 
     await addGraphAndFileToJob(uuid, exportGraphDocuments, file);
     await updateJob(uuid, FINISHED);
+    await createTaskToDelta(files)
     console.log(`finished job ${uuid}`);
   } catch (e) {
     console.log(e);
