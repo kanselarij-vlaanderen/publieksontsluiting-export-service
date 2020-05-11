@@ -20,7 +20,7 @@ The final result of the export will be written to the volume mounted in `/data/e
 
 The following environment variables can be configured:
 * `MU_SPARQL_ENDPOINT` (default: http://database:8890/sparql): SPARQL endpoint of the internal triple store to write intermediate results to
-* `VIRTUOSO_SPARQL_ENDPOINT` (default: http://kaleidos:8890/sparql): SPARQL endpoint of the Virtuoso triple store, in order to extract the ttl files.
+* `VIRTUOSO_SPARQL_ENDPOINT` (default: http://virtuoso:8890/sparql): SPARQL endpoint of the Virtuoso triple store, in order to extract the ttl files.
 * `KALEIDOS_SPARQL_ENDPOINT` (default: http://kaleidos:8890/sparql): SPARQL endpoint of the Kaleidos triple store
 * `EXPORT_BATCH_SIZE` (default: 1000): number of triples to export in batch in the final dump
 
