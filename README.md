@@ -16,6 +16,25 @@ Add the following snippet to your `docker-compose.yml`:
 
 The final result of the export will be written to the volume mounted in `/data/exports`.
 
+
+## Use
+
+In order to export a zitting you must send a POST request to `/export/:uuid` being `:uuid` the uuid of the zitting we want to export.
+This export can be customized with some parameters in a json object sent alongside the request.
+* scope: Customizes sections of the zitting you want to export, the supported values are "news-items", "announcements" and "documents". The session info will always be exported and "documents" only can be exported if both "news-items" and "announcements" are exported
+* documentNotification: including this parameter allows you to create a new ttl file for a document notification, its an object containing 2 properties the sessionDate and the documentPublicationDateTime.
+
+Example request body:
+```
+{
+  "scope": [ "news-items", "announcements" ],
+  "documentNotification": {
+    "sessionDate": "8 mei 2020",
+    "documentPublicationDateTime": "11 mei 2020 om 14:00"
+  }
+}
+```
+
 ## Configuration
 
 The following environment variables can be configured:
