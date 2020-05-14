@@ -1,9 +1,7 @@
-import { app, query, update, uuid, errorHandler, sparqlEscapeUri, sparqlEscapeString } from 'mu';
+import { app, uuid, errorHandler, sparqlEscapeUri, sparqlEscapeString } from 'mu';
 import uniq from 'lodash.uniq';
 import { writeToFile } from './lib/graph-helpers';
-import { queryKaleidos } from './lib/kaleidos';
-import { copyToLocalGraph } from './lib/query-helpers';
-import { createTaskToDelta } from './lib/task-helpers'
+import { createTaskToDelta } from './lib/task-helpers';
 import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
   copySession,
@@ -25,21 +23,17 @@ import {
   calculatePriorityMededelingen
 } from './queries';
 import bodyParser from 'body-parser';
-import {promises as FsPromises} from 'fs'
+import {promises as FsPromises} from 'fs';
 
 const EXPORT_SINCE = new Date(Date.parse('2006-07-19T00:00:00.000Z'));
 const MEDEDELINGEN_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
 const DOCUMENTS_SINCE = new Date(Date.parse('2016-09-08T00:00:00.000Z'));
 
-const kaleidosGraph = `http://mu.semte.ch/graphs/organizations/kanselarij`;
-const publicGraph = `http://mu.semte.ch/graphs/public`;
-
-
 app.get('/', function( req, res ) {
   res.send('Hello from valvas-export-service');
 } );
 
-app.get('/export/:uuid', async function(req,res,next) {
+app.get('/export/:uuid', async function(req,res) {
 
   const job = (await getJob(req.params.uuid));
   if (job.status === FINISHED) {
@@ -50,13 +44,13 @@ app.get('/export/:uuid', async function(req,res,next) {
   }
 });
 
-app.post('/export/:uuid', bodyParser.json(), async function(req, res, next) {
+app.post('/export/:uuid', bodyParser.json(), async function(req, res) {
   const sessionId = req.params.uuid;
-  const scope = req.body.scope
+  const scope = req.body.scope;
   if(scope && scope.includes('documents') && (!scope.includes('news-items') || !scope.includes('announcements'))) {
     res.status(400).send({error: 'If "documents" is included in the scope "news-items" and "announcements" also need to be included'});
   }
-  const documentNotification = req.body.documentNotification
+  const documentNotification = req.body.documentNotification;
   const session = await getSession(sessionId);
   if (session) {
     const jobId = uuid();
@@ -97,24 +91,24 @@ async function createExport(uuid) {
   try {
     await updateJob(uuid, STARTED);
     const sessionUri = job.zitting;
-    let files = []
+    let files = [];
     const timestamp = new Date().toISOString().replace(/\D/g, '');
     const sessionTimestamp = sessionDate.toISOString().replace(/\D/g, '');
     const exportFileBase = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-${uuid}-${sessionTimestamp}`;
     
     if(job.scope) {
-      files = await partialExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri, job.scope)
+      files = await partialExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri, job.scope);
     } else {
-      files = await completeExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri)
+      files = await completeExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri);
     }
 
     if(job.documentNotification) {
-      const documentNotificationFile = await createDocumentNotificationFile(uuid, sessionUri, exportFileBase, job.documentNotification)
-      files.push(documentNotificationFile)
+      const documentNotificationFile = await createDocumentNotificationFile(uuid, sessionUri, exportFileBase, job.documentNotification);
+      files.push(documentNotificationFile);
     }
     
     await updateJob(uuid, FINISHED);
-    await createTaskToDelta(files)
+    await createTaskToDelta(files);
     console.log(`finished job ${uuid}`);
   } catch (e) {
     console.log(e);
@@ -122,27 +116,27 @@ async function createExport(uuid) {
   }
 }
 
-async function completeExport(uuid, timestamp, sessionDate, sessionUri) {
+async function completeExport(uuid, timestamp, exportFileBase ,sessionDate, sessionUri) {
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
 
-  const files = []
+  const files = [];
 
-  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp)
-  files.push(sessionFile)
+  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp);
+  files.push(sessionFile);
 
   const agenda = await getLatestAgendaOfSession(sessionUri);
   const agendaUri = agenda.uri;
 
   const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
-  const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems)
-  files.push(newsItemsFile)
+  const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems);
+  files.push(newsItemsFile);
 
   // Mededelingen dump
   const exportGraphMededelingen = `http://mu.semte.ch/graphs/export/${timestamp}-mededelingen`;
 
   if (sessionDate > MEDEDELINGEN_SINCE) {
-    const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen)
-    files.push(mededelingFile)
+    const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen);
+    files.push(mededelingFile);
   } else {
     console.log(`Public export of mededelingen didn't exist yet on ${sessionDate}. Mededelingen will be exported`);
   }
@@ -150,8 +144,8 @@ async function completeExport(uuid, timestamp, sessionDate, sessionUri) {
   // Documents dump
 
   if (sessionDate > DOCUMENTS_SINCE) {
-    const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen)
-    files.push(documentsFile)
+    const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen);
+    files.push(documentsFile);
   } else {
     console.log(`Public export of documents didn't exist yet on ${sessionDate}. Documents will be exported`);
   }
@@ -161,25 +155,25 @@ async function completeExport(uuid, timestamp, sessionDate, sessionUri) {
 async function partialExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri, scope) {
   const tmpGraph = `http://mu.semte.ch/graphs/tmp/${timestamp}`;
 
-  const files = []
+  const files = [];
 
-  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp)
-  files.push(sessionFile)
+  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp);
+  files.push(sessionFile);
 
   const agenda = await getLatestAgendaOfSession(sessionUri);
   const agendaUri = agenda.uri;
 
   const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
   if(scope.includes('news-items')) {
-    const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems)
-    files.push(newsItemsFile)
+    const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems);
+    files.push(newsItemsFile);
   }
 
   const exportGraphMededelingen = `http://mu.semte.ch/graphs/export/${timestamp}-mededelingen`;
   if(scope.includes('announcements')) {
     if (sessionDate > MEDEDELINGEN_SINCE) {
-      const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen)
-      files.push(mededelingFile)
+      const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen);
+      files.push(mededelingFile);
     } else {
       console.log(`Public export of mededelingen didn't exist yet on ${sessionDate}. Mededelingen will be exported`);
     }
@@ -187,13 +181,13 @@ async function partialExport(uuid, timestamp, exportFileBase, sessionDate, sessi
 
   if(scope.includes('documents') && scope.includes('news-items') && scope.includes('announcements')) {
     if (sessionDate > DOCUMENTS_SINCE) {
-      const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen)
-      files.push(documentsFile)
+      const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen);
+      files.push(documentsFile);
     } else {
       console.log(`Public export of documents didn't exist yet on ${sessionDate}. Documents will be exported`);
     }
   }
-  return files
+  return files;
 }
 
 
@@ -205,7 +199,7 @@ async function exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp) {
 
   await writeToFile(exportGraphSessionInfo, file);
   await addGraphAndFileToJob(uuid, exportGraphSessionInfo, file);
-  return file.split('/').pop()
+  return file.split('/').pop();
 }
 
 async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems) {
@@ -233,7 +227,7 @@ async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, times
 
   await writeToFile(exportGraphNewsItems, file);
   await addGraphAndFileToJob(uuid, exportGraphNewsItems, file);
-  return file.split('/').pop()
+  return file.split('/').pop();
 }
 
 async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen) {
@@ -254,7 +248,7 @@ async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, time
 
   await writeToFile(exportGraphMededelingen, file);
   await addGraphAndFileToJob(uuid, exportGraphMededelingen, file);
-  return file.split('/').pop()
+  return file.split('/').pop();
 }
 
 async function exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen) {
@@ -281,13 +275,13 @@ async function exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, export
 
   await writeToFile(exportGraphDocuments, file);
   await addGraphAndFileToJob(uuid, exportGraphDocuments, file);
-  return file.split('/').pop()
+  return file.split('/').pop();
 }
 
 async function createDocumentNotificationFile(uuid, sessionUri, exportFileBase, documentNotification) {
   const file = `${exportFileBase}-document-notification.ttl`;
-  const title = `Document ministerraad ${documentNotification.sessionDate}`
-  const description = `De documenten van deze ministerraad zullen beschikbaar zijn vanaf ${documentNotification.documentPublicationDateTime}.`
+  const title = `Document ministerraad ${documentNotification.sessionDate}`;
+  const description = `De documenten van deze ministerraad zullen beschikbaar zijn vanaf ${documentNotification.documentPublicationDateTime}.`;
   const fileContent = `
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -302,7 +296,7 @@ async function createDocumentNotificationFile(uuid, sessionUri, exportFileBase, 
         dct:subject ${sparqlEscapeUri(sessionUri)} .
       }
     }
-  `
-  await FsPromises.writeFile(file, fileContent)
-  return file.split('/').pop()
+  `;
+  await FsPromises.writeFile(file, fileContent);
+  return file.split('/').pop();
 }

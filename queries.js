@@ -1,4 +1,4 @@
-import { uuid, query, update, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
+import { query, update, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
 import { queryKaleidos } from './lib/kaleidos';
 import { parseResult, copyToLocalGraph } from './lib/query-helpers';
 
@@ -700,7 +700,7 @@ async function calculatePriorityNewsItems(exportGraph) {
 
     // Set overall priority per newsItem based on groupPriority and agendaItem number
     let itemPriority = 0;
-    sortedMandateeGroups.forEach(function (group, index) {
+    sortedMandateeGroups.forEach(function (group) {
       const groupKey = group[0];
       newsItems.filter(item => item.groupKey === groupKey)
         .sort((itemA, itemB) => itemA.number - itemB.number)
@@ -782,11 +782,11 @@ async function calculatePriorityMededelingen(exportGraph) {
 
     INSERT DATA {
       GRAPH <${exportGraph}> {
-         <${result.newsItem}> ext:prioriteit ${sparqlEscapeInt(priority)} .
+        <${result.newsItem}> ext:prioriteit ${sparqlEscapeInt(priority)} .
       }
     }
   `);
-  };
+  }
 }
 
 export {
@@ -809,4 +809,4 @@ export {
   linkNewsItemsToDocumentVersion,
   calculatePriorityNewsItems,
   calculatePriorityMededelingen
-}
+};
