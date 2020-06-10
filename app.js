@@ -2,7 +2,6 @@ import { app, uuid, errorHandler, sparqlEscapeUri, sparqlEscapeString } from 'mu
 import uniq from 'lodash.uniq';
 import { writeToFile } from './lib/graph-helpers';
 import { createTaskToDelta } from './lib/task-helpers';
-import { createJob, updateJob, addGraphAndFileToJob, getFirstScheduledJobId, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import {
   copySession,
   copyNewsItemForProcedurestap,
@@ -22,6 +21,7 @@ import {
   calculatePriorityNewsItems,
   calculatePriorityMededelingen
 } from './queries';
+import { createJob, updateJob, addGraphAndFileToJob, getNextScheduledJob, getJob, FINISHED, FAILED, STARTED } from './lib/jobs';
 import bodyParser from 'body-parser';
 import path from 'path';
 import {promises as FsPromises} from 'fs';
@@ -35,12 +35,10 @@ app.get('/', function( req, res ) {
 } );
 
 app.get('/export/:uuid', async function(req,res) {
-
-  const job = (await getJob(req.params.uuid));
+  const job = await getJob(req.params.uuid);
   if (job.status === FINISHED) {
     res.status(200).send({status: job.status, export: job.file, graph: job.graph});
-  }
-  else {
+  } else {
     res.status(406).send({status: job.status});
   }
 });
@@ -64,30 +62,32 @@ app.post('/export/:uuid', bodyParser.json(), async function(req, res) {
   if (session) {
     const jobId = uuid();
     await createJob(jobId, session, scope, documentNotification);
+    executeJobs();  // async execution of export job
     res.status(202).send({
       jobId
     });
   }
   else {
-    res.status(404).send({ error: `Could not find session with uuid ${sessionId} in Kaleidos`});
+    res.status(404).send(
+      { error: `Could not find session with uuid ${sessionId} in Kaleidos`}
+    );
   }
 });
 
 app.use(errorHandler);
 
 executeJobs();
+
 async function executeJobs() {
-  const job = await getFirstScheduledJobId();
+  const job = await getNextScheduledJob();
   if (job) {
-    await createExport(job);
-    executeJobs();
+    await generateExport(job);
+    executeJobs(); // trigger execution of next job if there is one scheduled
   }
-  else {
-    setTimeout(executeJobs, 60000);
-  }
+  // else: no job scheduled. Nothing should happen
 }
 
-async function createExport(uuid) {
+async function generateExport(uuid) {
   const job = await getJob(uuid);
   const sessionDate = new Date(Date.parse(job.zittingDatum));
   console.log(sessionDate);
