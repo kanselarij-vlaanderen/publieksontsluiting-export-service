@@ -23,6 +23,7 @@ import {
   calculatePriorityMededelingen
 } from './queries';
 import bodyParser from 'body-parser';
+import path from 'path';
 import {promises as FsPromises} from 'fs';
 
 const EXPORT_SINCE = new Date(Date.parse('2006-07-19T00:00:00.000Z'));
@@ -170,7 +171,7 @@ async function exportSessionInfo(uuid, sessionUri, exportFileBase, exportGraphSe
 
   await writeToFile(exportGraphSessionInfo, file);
   await addGraphAndFileToJob(uuid, exportGraphSessionInfo, file);
-  return file.split('/').pop();
+  return path.basename(file);
 }
 
 async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphNewsItems) {
@@ -192,7 +193,7 @@ async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agend
 
   await writeToFile(exportGraphNewsItems, file);
   await addGraphAndFileToJob(uuid, exportGraphNewsItems, file);
-  return file.split('/').pop();
+  return path.basename(file);
 }
 
 async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphMededelingen) {
@@ -213,7 +214,7 @@ async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, agen
 
   await writeToFile(exportGraphMededelingen, file);
   await addGraphAndFileToJob(uuid, exportGraphMededelingen, file);
-  return file.split('/').pop();
+  return path.basename(file);
 }
 
 async function exportDocuments(uuid, tmpGraph, exportFileBase, exportGraphNewsItems, exportGraphMededelingen, exportGraphDocuments) {
@@ -239,7 +240,7 @@ async function exportDocuments(uuid, tmpGraph, exportFileBase, exportGraphNewsIt
 
   await writeToFile(exportGraphDocuments, file);
   await addGraphAndFileToJob(uuid, exportGraphDocuments, file);
-  return file.split('/').pop();
+  return path.basename(file);
 }
 
 async function createDocumentNotificationFile(uuid, sessionUri, exportFileBase, documentNotification) {
@@ -262,5 +263,5 @@ async function createDocumentNotificationFile(uuid, sessionUri, exportFileBase, 
     }
   `;
   await FsPromises.writeFile(file, fileContent);
-  return file.split('/').pop();
+  return path.basename(file);
 }
