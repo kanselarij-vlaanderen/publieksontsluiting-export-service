@@ -1,4 +1,4 @@
-import { query, update, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
+import { query, update, uuid, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
 import { queryKaleidos } from './lib/kaleidos';
 import { parseResult, copyToLocalGraph } from './lib/query-helpers';
 
@@ -789,6 +789,25 @@ async function calculatePriorityMededelingen(exportGraph) {
   }
 }
 
+async function insertDocumentNotification(exportGraph, sessionUri, title, description) {
+  const notificationUuid = uuid();
+  const notificationUri = `http://kanselarij.vo.data.gift/notifications/${notificationUuid}`;
+  await update(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX dct: <http://purl.org/dc/terms/>
+
+    INSERT DATA {
+      GRAPH ${sparqlEscapeUri(exportGraph)} {
+        <${notificationUri}> a ext:Notification ;
+                             mu:uuid ${sparqlEscapeString(notificationUuid)} ;
+                             dct:title ${sparqlEscapeString(title)} ;
+                             dct:description ${sparqlEscapeString(description)} ;
+                             dct:subject ${sparqlEscapeUri(sessionUri)} .
+      }
+    }`);
+}
+
 export {
   copySession,
   copyThemaCodes,
@@ -808,5 +827,6 @@ export {
   insertDocumentAndLatestVersion,
   linkNewsItemsToDocumentVersion,
   calculatePriorityNewsItems,
-  calculatePriorityMededelingen
+  calculatePriorityMededelingen,
+  insertDocumentNotification
 };
