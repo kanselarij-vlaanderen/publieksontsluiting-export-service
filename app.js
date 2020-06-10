@@ -120,7 +120,8 @@ async function executeExport(uuid, timestamp, exportFileBase, sessionDate, sessi
 
   const files = [];
 
-  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp);
+  const exportGraphSessionInfo = `http://mu.semte.ch/graphs/export/${timestamp}-session-info`;
+  const sessionFile = await exportSessionInfo(uuid, sessionUri, exportFileBase, exportGraphSessionInfo);
   files.push(sessionFile);
 
   const agenda = await getLatestAgendaOfSession(sessionUri);
@@ -128,23 +129,24 @@ async function executeExport(uuid, timestamp, exportFileBase, sessionDate, sessi
 
   const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
   if(scope.includes('news-items')) {
-    const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems);
+    const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphNewsItems);
     files.push(newsItemsFile);
   }
 
   const exportGraphMededelingen = `http://mu.semte.ch/graphs/export/${timestamp}-mededelingen`;
   if(scope.includes('announcements')) {
     if (sessionDate > MEDEDELINGEN_SINCE) {
-      const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen);
+      const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphMededelingen);
       files.push(mededelingFile);
     } else {
       console.log(`Public export of mededelingen didn't exist yet on ${sessionDate}. Mededelingen will be exported`);
     }
   }
 
+  const exportGraphDocuments = `http://mu.semte.ch/graphs/export/${timestamp}-documents`;
   if(scope.includes('documents') && scope.includes('news-items') && scope.includes('announcements')) {
     if (sessionDate > DOCUMENTS_SINCE) {
-      const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen);
+      const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, exportGraphNewsItems, exportGraphMededelingen, exportGraphDocuments);
       files.push(documentsFile);
     } else {
       console.log(`Public export of documents didn't exist yet on ${sessionDate}. Documents will be exported`);
@@ -154,8 +156,7 @@ async function executeExport(uuid, timestamp, exportFileBase, sessionDate, sessi
 }
 
 
-async function exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp) {
-  const exportGraphSessionInfo = `http://mu.semte.ch/graphs/export/${timestamp}-session-info`;
+async function exportSessionInfo(uuid, sessionUri, exportFileBase, exportGraphSessionInfo) {
   let file = `${exportFileBase}-session-info.ttl`;
 
   await copySession(sessionUri, exportGraphSessionInfo);
@@ -165,9 +166,8 @@ async function exportSessionInfo(uuid, sessionUri, exportFileBase, timestamp) {
   return file.split('/').pop();
 }
 
-async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphNewsItems) {
+async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphNewsItems) {
   const file = `${exportFileBase}-news-items.ttl`;
-
 
   if (agendaUri == null) {
     console.log(`No agenda found for session ${sessionUri}. Nothing to export.`);
@@ -193,7 +193,7 @@ async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, times
   return file.split('/').pop();
 }
 
-async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, timestamp, agendaUri, exportGraphMededelingen) {
+async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphMededelingen) {
   const file = `${exportFileBase}-mededelingen.ttl`;
 
   const mededelingen = await getMededelingenOfAgenda(agendaUri);
@@ -214,8 +214,7 @@ async function exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, time
   return file.split('/').pop();
 }
 
-async function exportDocuments(uuid, tmpGraph, exportFileBase, timestamp, exportGraphNewsItems, exportGraphMededelingen) {
-  const exportGraphDocuments = `http://mu.semte.ch/graphs/export/${timestamp}-documents`;
+async function exportDocuments(uuid, tmpGraph, exportFileBase, exportGraphNewsItems, exportGraphMededelingen, exportGraphDocuments) {
   const file = `${exportFileBase}-documents.ttl`;
 
   const documents = await getDocumentContainers(tmpGraph);
