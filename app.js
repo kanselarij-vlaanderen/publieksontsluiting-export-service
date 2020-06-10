@@ -54,6 +54,12 @@ app.post('/export/:uuid', bodyParser.json(), async function(req, res) {
     });
   }
   const documentNotification = req.body.documentNotification;
+  if (documentNotification && (!documentNotification.sessionDate || !documentNotification.documentPublicationDateTime)) {
+    res.status(400).send({
+      error: 'Fields "sessionDate" and "documentPublicationDateTime" are required for a document notification'
+    });
+  }
+
   const session = await getSession(sessionId);
   if (session) {
     const jobId = uuid();
