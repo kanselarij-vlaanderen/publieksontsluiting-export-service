@@ -95,7 +95,7 @@ async function createExport(uuid) {
     const timestamp = new Date().toISOString().replace(/\D/g, '');
     const sessionTimestamp = sessionDate.toISOString().replace(/\D/g, '');
     const exportFileBase = `/data/exports/${timestamp.substring(0, 14)}-${timestamp.slice(14)}-${uuid}-${sessionTimestamp}`;
-    
+
     if(job.scope) {
       files = await partialExport(uuid, timestamp, exportFileBase, sessionDate, sessionUri, job.scope);
     } else {
@@ -106,7 +106,7 @@ async function createExport(uuid) {
       const documentNotificationFile = await createDocumentNotificationFile(uuid, sessionUri, exportFileBase, job.documentNotification);
       files.push(documentNotificationFile);
     }
-    
+
     await updateJob(uuid, FINISHED);
     await createTaskToDelta(files);
     console.log(`finished job ${uuid}`);
@@ -286,7 +286,7 @@ async function createDocumentNotificationFile(uuid, sessionUri, exportFileBase, 
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX dct: <http://purl.org/dc/terms/>
-    
+
     INSERT DATA {
       GRAPH <http://mu.semte.ch/graphs/public> {
         <http://kanselarij.vo.data.gift/notifications/$uuid> a ext:Notification ;
