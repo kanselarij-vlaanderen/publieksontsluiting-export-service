@@ -1,5 +1,4 @@
 import { app, uuid, errorHandler } from 'mu';
-import { createTaskToDelta } from './lib/task-helpers';
 import { createJob, getNextScheduledJob, getJob, executeJob, FINISHED } from './lib/jobs';
 import { getSession } from './queries';
 import bodyParser from 'body-parser';
