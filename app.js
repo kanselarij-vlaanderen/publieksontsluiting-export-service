@@ -47,8 +47,10 @@ app.get('/export/:uuid', async function(req,res) {
 app.post('/export/:uuid', bodyParser.json(), async function(req, res) {
   const sessionId = req.params.uuid;
   const scope = req.body.scope;
-  if(scope && scope.includes('documents') && (!scope.includes('news-items') || !scope.includes('announcements'))) {
-    res.status(400).send({error: 'If "documents" is included in the scope "news-items" and "announcements" also need to be included'});
+  if (scope && scope.includes('documents') && (!scope.includes('news-items') || !scope.includes('announcements'))) {
+    res.status(400).send({
+      error: 'If "documents" is included in the scope "news-items" and "announcements" also need to be included'
+    });
   }
   const documentNotification = req.body.documentNotification;
   const session = await getSession(sessionId);
@@ -127,14 +129,19 @@ async function executeExport(uuid, timestamp, exportFileBase, sessionDate, sessi
   const agenda = await getLatestAgendaOfSession(sessionUri);
   const agendaUri = agenda.uri;
 
+  if (agendaUri == null) {
+    console.log(`No agenda found for session ${sessionUri}. Nothing to export.`);
+    return [];
+  }
+
   const exportGraphNewsItems = `http://mu.semte.ch/graphs/export/${timestamp}-news-items`;
-  if(scope.includes('news-items')) {
+  if (scope.includes('news-items')) {
     const newsItemsFile = await exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphNewsItems);
     files.push(newsItemsFile);
   }
 
   const exportGraphMededelingen = `http://mu.semte.ch/graphs/export/${timestamp}-mededelingen`;
-  if(scope.includes('announcements')) {
+  if (scope.includes('announcements')) {
     if (sessionDate > MEDEDELINGEN_SINCE) {
       const mededelingFile = await exportMededeling(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphMededelingen);
       files.push(mededelingFile);
@@ -144,7 +151,7 @@ async function executeExport(uuid, timestamp, exportFileBase, sessionDate, sessi
   }
 
   const exportGraphDocuments = `http://mu.semte.ch/graphs/export/${timestamp}-documents`;
-  if(scope.includes('documents') && scope.includes('news-items') && scope.includes('announcements')) {
+  if (scope.includes('documents') && scope.includes('news-items') && scope.includes('announcements')) {
     if (sessionDate > DOCUMENTS_SINCE) {
       const documentsFile = await exportDocuments(uuid, tmpGraph, exportFileBase, exportGraphNewsItems, exportGraphMededelingen, exportGraphDocuments);
       files.push(documentsFile);
@@ -168,11 +175,6 @@ async function exportSessionInfo(uuid, sessionUri, exportFileBase, exportGraphSe
 
 async function exportNewsItems(uuid, sessionUri, tmpGraph, exportFileBase, agendaUri, exportGraphNewsItems) {
   const file = `${exportFileBase}-news-items.ttl`;
-
-  if (agendaUri == null) {
-    console.log(`No agenda found for session ${sessionUri}. Nothing to export.`);
-    return;
-  }
 
   // News items dump
   const procedurestappen = await getProcedurestappenOfAgenda(agendaUri);
