@@ -517,7 +517,7 @@ async function insertDocumentAndLatestVersion(containerUri, versionUri, tmpGraph
    * Rewrites new Kaleidos model for documents to original Valvas documents model.
    * Once the Kaleidos model is consistent for new as well as legacy data, Valvas can start using the new model as well.
    */
-  return await query(`
+  return await update(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -553,7 +553,7 @@ async function insertDocumentAndLatestVersion(containerUri, versionUri, tmpGraph
 }
 
 async function linkNewsItemsToDocumentVersion(graphsWithNewsItems, tmpGraph, documentsGraph) {
-  return await query(`
+  return await update(`
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX prov: <http://www.w3.org/ns/prov#>
