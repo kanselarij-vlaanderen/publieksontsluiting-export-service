@@ -1,5 +1,8 @@
-import { query, update, uuid, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
+import { uuid, sparqlEscapeString, sparqlEscapeUri, sparqlEscapeInt } from 'mu';
 import { queryKaleidos } from './lib/kaleidos';
+// All intermediate data is written directly to Virtuoso in order to not generate delta notifications for these data insertions
+// Virtuoso is just used here as a temporary store to gather data before writing it to a file
+import { queryVirtuoso as query, updateVirtuoso as update } from './lib/virtuoso';
 import { parseResult, copyToLocalGraph } from './lib/query-helpers';
 
 const kanselarijGraph = "http://mu.semte.ch/graphs/organizations/kanselarij";
