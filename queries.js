@@ -81,14 +81,10 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
   `, graph);
 
   await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-    PREFIX prov: <http://www.w3.org/ns/prov#>
 
     CONSTRUCT {
-       ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+      ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
