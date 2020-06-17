@@ -393,12 +393,18 @@ async function getSession (uuid) {
   return sessions.length ? sessions[0] : null;
 }
 
-async function getLatestAgendaOfSession(sessionUri) {
+async function getLatestAgendaOfSession (sessionUri) {
+  /* TODO: This is more flexible for running an export when the session isn't concluded yet (final agenda closed),
+   * but "${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?uri" would be more correct here.
+   */
   const agendas = parseResult(await queryKaleidos(`
-     SELECT ?uri WHERE {
-       ?uri <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} ;
-          <http://mu.semte.ch/vocabularies/ext/aangemaaktOp> ?created .
-     } ORDER BY DESC(?created) LIMIT 1
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+
+    SELECT ?uri WHERE {
+     ?uri besluitvorming:isAgendaVoor ${sparqlEscapeUri(sessionUri)} ;
+        dct:created ?created .
+    } ORDER BY DESC(?created) LIMIT 1
   `));
   return agendas.length ? agendas[0] : null;
 }
