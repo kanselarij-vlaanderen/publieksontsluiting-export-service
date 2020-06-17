@@ -376,14 +376,17 @@ async function copyDocumentTypes(graph) {
   `, graph);
 }
 
-async function getSession(uuid) {
+async function getSession (uuid) {
   const sessions = parseResult(await queryKaleidos(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
+
     SELECT ?uri ?geplandeStart
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ?uri a <http://data.vlaanderen.be/ns/besluit#Zitting> ;
-          <http://mu.semte.ch/vocabularies/core/uuid> ${sparqlEscapeString(uuid)} ;
-          <http://data.vlaanderen.be/ns/besluit#geplandeStart> ?geplandeStart .
+        ?uri a besluit:Vergaderactiviteit ;
+          mu:uuid ${sparqlEscapeString(uuid)} ;
+          besluit:geplandeStart ?geplandeStart .
       }
     }
   `));
