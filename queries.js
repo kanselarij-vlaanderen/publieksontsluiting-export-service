@@ -15,7 +15,7 @@ async function copySession(uri, graph) {
       ${sparqlEscapeUri(uri)} a besluit:Zitting ;
         mu:uuid ?uuid;
         besluit:geplandeStart ?geplandeStart .
-   }
+    }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
          ${sparqlEscapeUri(uri)} a besluit:Vergaderactiviteit ;
@@ -34,7 +34,7 @@ async function copySession(uri, graph) {
 
     CONSTRUCT {
       ${sparqlEscapeUri(uri)} ext:aard ?type .
-   }
+    }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
          ${sparqlEscapeUri(uri)} ext:aard ?typeStr .
