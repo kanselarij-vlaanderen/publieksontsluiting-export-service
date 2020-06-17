@@ -25,11 +25,8 @@ async function copySession(uri, graph) {
     }
   `, graph);
 
-  // Value of ext:aard is currently a string instead of a URI in Kaleidos. Valvas expects a URI.
-  // Workaround with the BIND(IRI(...)) construction.
   await copyToLocalGraph(`
-    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     CONSTRUCT {
@@ -37,8 +34,7 @@ async function copySession(uri, graph) {
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-         ${sparqlEscapeUri(uri)} ext:aard ?typeStr .
-         BIND(IRI(STR(?typeStr)) as ?type)
+        ${sparqlEscapeUri(uri)} dct:type ?type .
       }
     }
   `, graph);
