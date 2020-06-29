@@ -15,30 +15,26 @@ async function copySession(uri, graph) {
       ${sparqlEscapeUri(uri)} a besluit:Zitting ;
         mu:uuid ?uuid;
         besluit:geplandeStart ?geplandeStart .
-   }
+    }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-         ${sparqlEscapeUri(uri)} a besluit:Zitting ;
+        ${sparqlEscapeUri(uri)} a besluit:Vergaderactiviteit ;
           mu:uuid ?uuid ;
           besluit:geplandeStart ?geplandeStart .
       }
     }
   `, graph);
 
-  // Value of ext:aard is currently a string instead of a URI in Kaleidos. Valvas expects a URI.
-  // Workaround with the BIND(IRI(...)) construction.
   await copyToLocalGraph(`
-    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     CONSTRUCT {
       ${sparqlEscapeUri(uri)} ext:aard ?type .
-   }
+    }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-         ${sparqlEscapeUri(uri)} ext:aard ?typeStr .
-         BIND(IRI(STR(?typeStr)) as ?type)
+        ${sparqlEscapeUri(uri)} dct:type ?type .
       }
     }
   `, graph);
@@ -85,14 +81,10 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
   `, graph);
 
   await copyToLocalGraph(`
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-    PREFIX prov: <http://www.w3.org/ns/prov#>
 
     CONSTRUCT {
-       ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+      ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
@@ -384,26 +376,35 @@ async function copyDocumentTypes(graph) {
   `, graph);
 }
 
-async function getSession(uuid) {
+async function getSession (uuid) {
   const sessions = parseResult(await queryKaleidos(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
+
     SELECT ?uri ?geplandeStart
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ?uri a <http://data.vlaanderen.be/ns/besluit#Zitting> ;
-          <http://mu.semte.ch/vocabularies/core/uuid> ${sparqlEscapeString(uuid)} ;
-          <http://data.vlaanderen.be/ns/besluit#geplandeStart> ?geplandeStart .
+        ?uri a besluit:Vergaderactiviteit ;
+          mu:uuid ${sparqlEscapeString(uuid)} ;
+          besluit:geplandeStart ?geplandeStart .
       }
     }
   `));
   return sessions.length ? sessions[0] : null;
 }
 
-async function getLatestAgendaOfSession(sessionUri) {
+async function getLatestAgendaOfSession (sessionUri) {
+  /* TODO: This is more flexible for running an export when the session isn't concluded yet (final agenda closed),
+   * but "${sparqlEscapeUri(sessionUri)} besluitvorming:behandelt ?uri" would be more correct here.
+   */
   const agendas = parseResult(await queryKaleidos(`
-     SELECT ?uri WHERE {
-       ?uri <http://data.vlaanderen.be/ns/besluit#isAangemaaktVoor> ${sparqlEscapeUri(sessionUri)} ;
-          <http://mu.semte.ch/vocabularies/ext/aangemaaktOp> ?created .
-     } ORDER BY DESC(?created) LIMIT 1
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+
+    SELECT ?uri WHERE {
+     ?uri besluitvorming:isAgendaVoor ${sparqlEscapeUri(sessionUri)} ;
+        dct:created ?created .
+    } ORDER BY DESC(?created) LIMIT 1
   `));
   return agendas.length ? agendas[0] : null;
 }
