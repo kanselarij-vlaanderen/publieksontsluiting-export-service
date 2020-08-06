@@ -71,7 +71,9 @@ async function copyNewsItemForProcedurestap(procedurestapUri, sessionUri, graph,
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
         ${sparqlEscapeUri(procedurestapUri)} prov:generated ?newsItem .
-        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:isGeagendeerdVia ?agendapunt .
+        ?agendering a besluitvorming:Agendering ;
+          besluitvorming:vindtPlaatsTijdens ${sparqlEscapeUri(procedurestapUri)} ;
+          besluitvorming:genereertAgendapunt ?agendapunt .
         ?agendapunt ext:prioriteit ?priority .
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
           mu:uuid ?uuid ;
@@ -428,8 +430,10 @@ async function getProcedurestappenOfAgenda(agendaUri) {
         ?agendapunt ext:wordtGetoondAlsMededeling "false"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
                     ext:prioriteit ?priorty .
         ?uri a dbpedia:UnitOfWork ;
-          besluitvorming:isGeagendeerdVia ?agendapunt ;
           prov:generated ?newsItem .
+        ?agendering a besluitvorming:Agendering ;
+          besluitvorming:vindtPlaatsTijdens ?uri ;
+          besluitvorming:genereertAgendapunt ?agendapunt .
         OPTIONAL { ?uri besluitvorming:heeftBevoegde ?mandatee . }
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
           ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
@@ -458,8 +462,10 @@ async function getMededelingenOfAgenda(agendaUri) {
       OPTIONAL {
         ?procedurestap a dbpedia:UnitOfWork ;
           mu:uuid ?uuid ;
-          besluitvorming:isGeagendeerdVia ?agendapunt ;
           prov:generated ?nieuwsbriefInfo .
+        ?agendering a besluitvorming:Agendering ;
+          besluitvorming:vindtPlaatsTijdens ?procedurestap ;
+          besluitvorming:genereertAgendapunt ?agendapunt .
         ?nieuwsbriefInfo a besluitvorming:NieuwsbriefInfo .
       }
     }
