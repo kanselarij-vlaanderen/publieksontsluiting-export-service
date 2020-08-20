@@ -134,7 +134,7 @@ async function copyNewsItemForAgendapunt(agendapuntUri, sessionUri, graph, categ
   `, graph);
 }
 
-async function copyMandateeAndPerson(mandateeUri, graph) {
+async function copyMandateeRank(mandateeUri, graph) {
   await copyToLocalGraph(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     PREFIX dct: <http://purl.org/dc/terms/>
@@ -144,86 +144,20 @@ async function copyMandateeAndPerson(mandateeUri, graph) {
 
     CONSTRUCT {
       ${sparqlEscapeUri(mandateeUri)} a mandaat:Mandataris ;
-        mu:uuid ?uuidMandatee ;
         dct:title ?title ;
-        mandaat:start ?start ;
-        mandaat:rangorde ?rank ;
-        mandaat:isBestuurlijkeAliasVan ?person .
-      ?person a person:Person ;
-        mu:uuid ?uuidPerson ;
-        foaf:firstName ?firstName ;
-        foaf:familyName ?familyName .
+        mandaat:rangorde ?rank .
     }
     WHERE {
       GRAPH ?g {
         ${sparqlEscapeUri(mandateeUri)} a mandaat:Mandataris ;
-          mu:uuid ?uuidMandatee ;
-          dct:title ?title ;
-          mandaat:start ?start ;
-          mandaat:isBestuurlijkeAliasVan ?person .
+          dct:title ?title .
         OPTIONAL { ${sparqlEscapeUri(mandateeUri)} mandaat:rangorde ?rank . }
-        ?person mu:uuid ?uuidPerson ;
-          foaf:firstName ?firstName ;
-          foaf:familyName ?familyName .
       }
       VALUES ?g {
         ${sparqlEscapeUri(kanselarijGraph)}
         ${sparqlEscapeUri(publicGraph)}
       }
     }
-  `, graph);
-
-  await copyToLocalGraph(`
-      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX dct: <http://purl.org/dc/terms/>
-      PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
-      PREFIX person: <http://www.w3.org/ns/person#>
-      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-
-      CONSTRUCT {
-        ${sparqlEscapeUri(mandateeUri)} ?p ?o .
-      }
-      WHERE {
-        GRAPH ?g {
-          ${sparqlEscapeUri(mandateeUri)} ?p ?o .
-        }
-        VALUES ?g {
-          ${sparqlEscapeUri(kanselarijGraph)}
-          ${sparqlEscapeUri(publicGraph)}
-        }
-        VALUES ?p {
-          mandaat:einde
-          mandaat:rangorde
-          ext:nickName
-        }
-      }
-  `, graph);
-
-  await copyToLocalGraph(`
-      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX dct: <http://purl.org/dc/terms/>
-      PREFIX mandaat: <http://data.vlaanderen.be/ns/mandaat#>
-      PREFIX person: <http://www.w3.org/ns/person#>
-      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-
-      CONSTRUCT {
-        ${sparqlEscapeUri(mandateeUri)} ?p ?o .
-      }
-      WHERE {
-        GRAPH ?g {
-          ${sparqlEscapeUri(mandateeUri)} mandaat:isBestuurlijkeAliasVan ?person .
-          ?person ?p ?o
-        }
-        VALUES ?g {
-          ${sparqlEscapeUri(kanselarijGraph)}
-          ${sparqlEscapeUri(publicGraph)}
-        }
-        VALUES ?p {
-          foaf:name
-        }
-      }
   `, graph);
 }
 
@@ -609,7 +543,7 @@ function sortMandateeGroups(mandateeGroups) {
         minister Y has assigned agendaItem 4
    Final order of the agendaItems will be: 3 - 5 - 4
 */
-async function calculatePriorityNewsItems(exportGraph) {
+async function calculatePriorityNewsItems(exportGraph, tmpGraph) {
   let triples = [];
 
   // Add priority for news items with mandatee(s)
@@ -629,6 +563,8 @@ async function calculatePriorityNewsItems(exportGraph) {
              besluitvorming:heeftBevoegde ?mandatee ;
              besluitvorming:isGeagendeerdVia ?agendaItem .
          ?agendaItem ext:prioriteit ?number .
+      }
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
          ?mandatee dct:title ?title .
          OPTIONAL {
            ?mandatee mandaat:rangorde ?rank .
@@ -811,7 +747,7 @@ export {
   copyDocumentTypes,
   copyNewsItemForProcedurestap,
   copyNewsItemForAgendapunt,
-  copyMandateeAndPerson,
+  copyMandateeRank,
   copyDocumentsForProcedurestap,
   copyDocumentsForAgendapunt,
   copyFileTriples,
