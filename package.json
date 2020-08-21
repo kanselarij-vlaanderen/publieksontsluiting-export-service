@@ -1,6 +1,6 @@
 {
   "name": "valvas-export-service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Microservice that exports news items for the Valvas application",
   "repository": {
     "type": "git",
