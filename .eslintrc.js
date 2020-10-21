@@ -11,6 +11,7 @@ module.exports = {
     node: true
   },
   rules: {
-    semi: 'warn'
+    semi: 'warn',
+    'no-console': 'off'
   },
 };

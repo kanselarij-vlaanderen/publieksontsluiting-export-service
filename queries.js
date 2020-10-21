@@ -535,19 +535,19 @@ async function calculateNotaNewsItemsPriority(exportGraph, tmpGraph) {
     SELECT DISTINCT ?newsItem ?number ?mandatee ?title ?rank
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-         ?newsItem a besluitvorming:NieuwsbriefInfo ;
-           ext:newsItemCategory "nieuws" .
-         ?treatment a besluit:BehandelingVanAgendapunt ;
-           besluitvorming:heeftOnderwerp ?agendaItem ;
-           prov:generated ?newsItem ;
-           ext:beslissingVindtPlaatsTijdens ?procedurestap .
-         ?procedurestap besluitvorming:heeftBevoegde ?mandatee .
-         ?agendaItem ext:prioriteit ?number .
+        ?newsItem a besluitvorming:NieuwsbriefInfo ;
+          ext:newsItemCategory "nieuws" .
+        ?treatment a besluit:BehandelingVanAgendapunt ;
+          besluitvorming:heeftOnderwerp ?agendaItem ;
+          prov:generated ?newsItem ;
+          ext:beslissingVindtPlaatsTijdens ?procedurestap .
+        ?procedurestap besluitvorming:heeftBevoegde ?mandatee .
+        ?agendaItem ext:prioriteit ?number .
       }
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-         ?mandatee dct:title ?title .
-         OPTIONAL {
-           ?mandatee mandaat:rangorde ?rank .
+        ?mandatee dct:title ?title .
+        OPTIONAL {
+         ?mandatee mandaat:rangorde ?rank .
         }
       }
     }
@@ -639,13 +639,13 @@ async function calculateNotaNewsItemsPriority(exportGraph, tmpGraph) {
     SELECT DISTINCT ?newsItem ?number
     WHERE {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
-         ?newsItem a besluitvorming:NieuwsbriefInfo .
-         ?treatment a besluit:BehandelingVanAgendapunt ;
+        ?newsItem a besluitvorming:NieuwsbriefInfo .
+        ?treatment a besluit:BehandelingVanAgendapunt ;
            besluitvorming:heeftOnderwerp ?agendaItem ;
            prov:generated ?newsItem ;
            ext:beslissingVindtPlaatsTijdens ?procedurestap .
-         FILTER NOT EXISTS { ?procedurestap besluitvorming:heeftBevoegde ?mandatee . }
-         ?agendaItem ext:prioriteit ?number .
+        FILTER NOT EXISTS { ?procedurestap besluitvorming:heeftBevoegde ?mandatee . }
+        ?agendaItem ext:prioriteit ?number .
       }
     }
   `));
