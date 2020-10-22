@@ -84,7 +84,7 @@ async function copyAgendaItemDetails(agendaItemUri, graph) {
     PREFIX prov: <http://www.w3.org/ns/prov#>
 
     CONSTRUCT {
-      ?agendapunt ext:prioriteit ?priority .
+      ${sparqlEscapeUri(agendaItemUri)} ext:prioriteit ?priority .
       ?treatment a besluit:BehandelingVanAgendapunt ;
         besluitvorming:heeftOnderwerp ${sparqlEscapeUri(agendaItemUri)} ;
         prov:generated ?newsItem ;
@@ -102,16 +102,54 @@ async function copyAgendaItemDetails(agendaItemUri, graph) {
   `, graph);
 }
 
-async function copyProcedurestapDetails(procedurestapUri, graph) {
+async function insertAgendaItemDetails(agendaItemUri, graph) {
   await copyToLocalGraph(`
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     CONSTRUCT {
-      ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+      ${sparqlEscapeUri(agendaItemUri)} ext:prioriteit ?priority .
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+        ${sparqlEscapeUri(agendaItemUri)} ext:prioriteit ?priority .
+      }
+    }
+  `, graph);
+}
+
+async function copyProcedurestapDetails(procedurestapUri, graph) {
+  await copyToLocalGraph(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(procedurestapUri)} ext:heeftBevoegde ?heeftBevoegde .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ${sparqlEscapeUri(procedurestapUri)} ext:heeftBevoegde ?heeftBevoegde .
+      }
+    }
+  `, graph);
+}
+
+async function insertProcedurestapModelCompat(procedurestapUri, graph) {
+  await copyToLocalGraph(`
+    PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+
+    CONSTRUCT {
+      ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?heeftBevoegde .
+      ${sparqlEscapeUri(procedurestapUri)} prov:generated ?newsItem .
+    }
+    WHERE {
+      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
+        ?treatment a besluit:BehandelingVanAgendapunt ;
+          prov:generated ?newsItem ;
+          ext:beslissingVindtPlaatsTijdens ${sparqlEscapeUri(procedurestapUri)} .
+        OPTIONAL { ${sparqlEscapeUri(procedurestapUri)} ext:heeftBevoegde ?heeftBevoegde }
       }
     }
   `, graph);
@@ -365,13 +403,12 @@ async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
 
 async function getProcedurestap(tmpGraph, procedurestapUri) {
   return parseResult(await query(`
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
     SELECT ?mandatee
     WHERE {
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
-        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?mandatee .
+        ${sparqlEscapeUri(procedurestapUri)} ext:heeftBevoegde ?mandatee .
       }
     }
   `));
@@ -470,14 +507,14 @@ async function linkNewsItemsToDocumentVersion(graphsWithNewsItems, tmpGraph, doc
     WHERE {
       GRAPH ?g {
         ?newsInfo a besluitvorming:NieuwsbriefInfo .
-        ?treatment a besluit:BehandelingVanAgendapunt ;
-          besluitvorming:heeftOnderwerp ?agendaItem ;
-          prov:generated ?newsInfo .
       }
       VALUES ?g {
         ${graphsWithNewsItems.map(sparqlEscapeUri).join('\n')}
       }
       GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ?treatment a besluit:BehandelingVanAgendapunt ;
+          besluitvorming:heeftOnderwerp ?agendaItem ;
+          prov:generated ?newsInfo .
         ?agendaItem ext:bevatDocumentversie ?versie .
       }
     }
@@ -536,14 +573,14 @@ async function calculateNotaNewsItemsPriority(exportGraph, tmpGraph) {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
           ext:newsItemCategory "nieuws" .
+      }
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ?agendaItem ext:prioriteit ?number .
         ?treatment a besluit:BehandelingVanAgendapunt ;
           besluitvorming:heeftOnderwerp ?agendaItem ;
           prov:generated ?newsItem ;
           ext:beslissingVindtPlaatsTijdens ?procedurestap .
-        ?procedurestap besluitvorming:heeftBevoegde ?mandatee .
-        ?agendaItem ext:prioriteit ?number .
-      }
-      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ?procedurestap ext:heeftBevoegde ?mandatee .
         ?mandatee dct:title ?title .
         OPTIONAL {
          ?mandatee mandaat:rangorde ?rank .
@@ -637,13 +674,13 @@ async function calculateNotaNewsItemsPriority(exportGraph, tmpGraph) {
 
     SELECT DISTINCT ?newsItem ?number
     WHERE {
-      GRAPH ${sparqlEscapeUri(exportGraph)} {
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
         ?newsItem a besluitvorming:NieuwsbriefInfo .
         ?treatment a besluit:BehandelingVanAgendapunt ;
            besluitvorming:heeftOnderwerp ?agendaItem ;
            prov:generated ?newsItem ;
            ext:beslissingVindtPlaatsTijdens ?procedurestap .
-        FILTER NOT EXISTS { ?procedurestap besluitvorming:heeftBevoegde ?mandatee . }
+        FILTER NOT EXISTS { ?procedurestap ext:heeftBevoegde ?mandatee . }
         ?agendaItem ext:prioriteit ?number .
       }
     }
@@ -667,7 +704,7 @@ async function calculateNotaNewsItemsPriority(exportGraph, tmpGraph) {
 /*
   Mededeling are listed in order of the agendapunten after the news items.
 */
-async function calculatePriorityMededelingen(exportGraph) {
+async function calculatePriorityMededelingen(exportGraph, tmpGraph) {
   const results = parseResult(await query(`
     PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
     PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
@@ -679,6 +716,8 @@ async function calculatePriorityMededelingen(exportGraph) {
       GRAPH ${sparqlEscapeUri(exportGraph)} {
         ?newsItem a besluitvorming:NieuwsbriefInfo ;
           ext:newsItemCategory "mededeling" .
+      }
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
         ?treatment a besluit:BehandelingVanAgendapunt ;
           besluitvorming:heeftOnderwerp ?agendaItem ;
           prov:generated ?newsItem .
@@ -731,7 +770,9 @@ export {
   copyDocumentTypes,
   copyNewsItemForAgendaItemTreatment,
   copyAgendaItemDetails,
+  insertAgendaItemDetails,
   copyProcedurestapDetails,
+  insertProcedurestapModelCompat,
   copyMandateeRank,
   copyDocumentsForAgendapunt,
   copyFileTriples,
