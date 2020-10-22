@@ -358,14 +358,14 @@ async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
   PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
   PREFIX prov: <http://www.w3.org/ns/prov#>
 
-  SELECT ?agendapunt ?priority ?behandeling ?procedurestap
+  SELECT ?uri ?priority ?behandeling ?procedurestap
   WHERE {
     GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-      ${sparqlEscapeUri(agendaUri)} dct:hasPart ?agendapunt .
-      ?agendapunt ext:wordtGetoondAlsMededeling "${showAsAnouncement}"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
+      ${sparqlEscapeUri(agendaUri)} dct:hasPart ?uri .
+      ?uri ext:wordtGetoondAlsMededeling "${showAsAnouncement}"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> ;
                   ext:prioriteit ?priority .
       ?behandeling a besluit:BehandelingVanAgendapunt ;
-        besluitvorming:heeftOnderwerp ?agendapunt ;
+        besluitvorming:heeftOnderwerp ?uri ;
         prov:generated ?newsItem .
       ?newsItem a besluitvorming:NieuwsbriefInfo ;
         ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
