@@ -327,21 +327,6 @@ async function getLatestAgendaOfSession (sessionUri) {
   return agendas.length ? agendas[0] : null;
 }
 
-async function getProcedurestap(procedurestapUri) {
-  return parseResult(await queryKaleidos(`
-    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
-    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-
-    SELECT ?uuid ?mandatee
-    WHERE {
-      GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(procedurestapUri)} mu:uuid ?uuid .
-        OPTIONAL { ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?mandatee . }
-      }
-    }
-  `));
-}
-
 async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
   let showAsAnouncement;
   if (agendaItemType === 'nota') {
@@ -376,6 +361,20 @@ async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
       }
     }
   }`));
+}
+
+async function getProcedurestap(tmpGraph, procedurestapUri) {
+  return parseResult(await query(`
+    PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+
+    SELECT ?mandatee
+    WHERE {
+      GRAPH ${sparqlEscapeUri(tmpGraph)} {
+        ${sparqlEscapeUri(procedurestapUri)} besluitvorming:heeftBevoegde ?mandatee .
+      }
+    }
+  `));
 }
 
 async function getDocumentContainers(tmpGraph) {
