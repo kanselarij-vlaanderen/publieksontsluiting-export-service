@@ -92,7 +92,7 @@ async function copyAgendaItemDetails(agendaItemUri, graph) {
     }
     WHERE {
       GRAPH ${sparqlEscapeUri(kanselarijGraph)} {
-        ${sparqlEscapeUri(agendaItemUri)} ext:prioriteit ?priority ;
+        ${sparqlEscapeUri(agendaItemUri)} ext:prioriteit ?priority .
         ?treatment a besluit:BehandelingVanAgendapunt ;
           besluitvorming:heeftOnderwerp ${sparqlEscapeUri(agendaItemUri)} ;
           prov:generated ?newsItem .
