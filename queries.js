@@ -183,7 +183,7 @@ async function copyMandateeRank(mandateeUri, graph) {
 }
 
 async function copyDocumentsForAgendapunt(agendapuntUri, graph) {
-  return copyDocuments('ext:bevatAgendapuntDocumentversie', agendapuntUri, graph);
+  return copyDocuments('besluitvorming:geagendeerdStuk', agendapuntUri, graph);
 }
 
 async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
