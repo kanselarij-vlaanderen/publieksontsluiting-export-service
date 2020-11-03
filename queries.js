@@ -376,7 +376,7 @@ async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
   PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
   PREFIX besluitvorming: <http://data.vlaanderen.be/ns/besluitvorming#>
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-  PREFIX dbpedia: <http://dbpedia.org/ontology/>
+  PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
   PREFIX dct: <http://purl.org/dc/terms/>
   PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
   PREFIX prov: <http://www.w3.org/ns/prov#>
@@ -393,7 +393,7 @@ async function getAgendaItemsOfAgenda(agendaUri, agendaItemType='nota') {
       ?newsItem a besluitvorming:NieuwsbriefInfo ;
         ext:inNieuwsbrief "true"^^<http://mu.semte.ch/vocabularies/typed-literals/boolean> .
       OPTIONAL {
-        ?procedurestap a dbpedia:UnitOfWork ;
+        ?procedurestap a dossier:Procedurestap ;
           mu:uuid ?uuid .
         ?behandeling ext:beslissingVindtPlaatsTijdens ?procedurestap .
       }
