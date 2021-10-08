@@ -194,6 +194,7 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
     PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX dossier: <https://data.vlaanderen.be/ns/dossier#>
     PREFIX pav: <http://purl.org/pav/>
+    PREFIX mulit: <http://mu.semte.ch/vocabularies/typed-literals/>
 
     CONSTRUCT {
       ${sparqlEscapeUri(resourceUri)} ext:bevatDocumentversie ?document .
@@ -215,6 +216,8 @@ async function copyDocuments(documentVersiePredicate, resourceUri, graph) {
           dct:title ?nameDocument ;
           ext:toegangsniveauVoorDocumentVersie <${publicAccessLevel}> ;
           ext:file ?file .
+        OPTIONAL { ?document ext:vertrouwelijk ?confidential . }
+        FILTER(?confidential != "true"^^mulit:boolean )
         OPTIONAL { ?document pav:previousVersion ?previousVersion }
         ?container a dossier:Serie ;
           dossier:collectie.bestaatUit ?document ;
