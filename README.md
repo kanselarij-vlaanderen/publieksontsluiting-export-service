@@ -1,4 +1,6 @@
-# Valvas export service
+**This microservice is no longer used but replaced by [themis-export-service](https://github.com/kanselarij-vlaanderen/themis-export-service). Data for Valvas is retrieved from Themis instead of directly from Kaleidos now.**
+
+# [DEPRECATED] Valvas export service
 
 Microservice that exports news for the Valvas application
 
